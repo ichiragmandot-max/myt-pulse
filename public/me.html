@@ -3,20 +3,32 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MYT Pulse · My Feedback</title>
+<title>My Feedback · Mayank Tutorials</title>
+<link rel="icon" href="/favicon.png">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#203864">
+<meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Lora:wght@600;700&display=swap" rel="stylesheet">
 <style>
 :root{--navy:#203864;--red:#DD152B;--ink:#16213a;--ink-2:#4a5672;--muted:#8a93a8;--line:#e3e7ef;--bg:#f4f6fa;--prev:#b8c0cf;--up:#14804a;--down:#c4182b}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:15px;line-height:1.5}
 button,input{font:inherit}
-header{background:var(--navy);color:#fff;padding:14px 16px}
-header .in{max-width:760px;margin:0 auto;display:flex;align-items:center}
-.brand{font-weight:800;font-size:17px}.brand b{color:#ff4d5e}.brand small{display:block;font-weight:500;font-size:11px;opacity:.75;letter-spacing:.3px}
-.out{margin-left:auto;background:none;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:9px;padding:6px 10px;font-size:13px;cursor:pointer}
+header{background:#fff;padding:10px 16px;border-bottom:3px solid #0E8AC8;box-shadow:0 2px 10px rgba(22,33,58,.06)}
+header .in{max-width:760px;margin:0 auto;display:flex;align-items:center;gap:12px}
+header img{height:38px;width:auto;max-width:62vw;object-fit:contain;object-position:left}
+.out{margin-left:auto;background:#fff;border:1px solid var(--line);color:var(--navy);font-weight:700;border-radius:9px;padding:6px 10px;font-size:13px;cursor:pointer;white-space:nowrap}
+h1{font-family:Lora,Georgia,serif}
+.badges{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+@media(max-width:520px){.badges{grid-template-columns:1fr}}
+.badge{border-radius:16px;padding:16px 16px 14px;color:#fff;position:relative;overflow:hidden}
+.badge.sp{background:linear-gradient(135deg,#203864,#2f5296)}
+.badge.fo{background:linear-gradient(135deg,#DD152B,#b0101f)}
+.badge.fo.soft{background:linear-gradient(135deg,#0E8AC8,#0a6fa3)}
+.badge .ic{font-size:30px;line-height:1}
+.badge .k{font-size:11.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;opacity:.8;margin-top:8px}
+.badge .t{font-family:Lora,Georgia,serif;font-size:21px;font-weight:700;margin:2px 0}
+.badge .s{font-size:13px;opacity:.9}
 main{max-width:760px;margin:0 auto;padding:20px 16px 60px}
 .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px}
 h1{font-size:24px;margin:4px 0 4px;letter-spacing:-.3px}
@@ -61,7 +73,7 @@ td{padding:8px 6px;border-bottom:1px solid #f0f2f6}
 </style>
 </head>
 <body>
-<header><div class="in"><div class="brand">MYT <b>Pulse</b><small>MY FEEDBACK</small></div><button class="out" id="out" hidden>Log out</button></div></header>
+<header><div class="in"><img src="/logo.jpg" alt="Mayank Tutorials" width="1000" height="137"><button class="out" id="out" hidden>Log out</button></div></header>
 <main id="app"></main>
 <script>
 const $=s=>document.querySelector(s), app=$('#app');
@@ -85,6 +97,16 @@ async function open(pin){
     DATA=d; ROLE=0; render();
   }catch(e){login('Network problem. Please try again.')}
 }
+// Strongest and weakest question, measured against the institute average (not raw score)
+function badges(R,c){
+  const gaps=c.q.map((v,i)=>v!=null&&R.institute[i]!=null?{i,v,g:v-R.institute[i]}:null).filter(Boolean);
+  if(gaps.length<3||c.n<5)return'';
+  const best=gaps.reduce((a,b)=>b.g>a.g?b:a), worst=gaps.reduce((a,b)=>b.g<a.g?b:a);
+  const ICON={teacher:['💡','🙋','🤝','📚','⏰'],staff:['🤝','🚀','📣','🗓️','🛠️']}[R.role];
+  const cmp=x=>Math.abs(x.g)<0.05?'right at the average':`${Math.abs(x.g).toFixed(2)} ${x.g>0?'above':'below'} the average`;
+  return`<div class="badges"><div class="badge sp"><div class="ic">${ICON[best.i]}</div><div class="k">Your superpower</div><div class="t">${esc(R.labels[best.i])}</div><div class="s">${best.v.toFixed(2)} · ${cmp(best)}</div></div>
+    ${worst.i!==best.i?`<div class="badge fo ${worst.g>=0?'soft':''}"><div class="ic">${worst.g>=0?'🚀':'🎯'}</div><div class="k">${worst.g>=0?'Your next level':'Your focus this year'}</div><div class="t">${esc(R.labels[worst.i])}</div><div class="s">${worst.v.toFixed(2)} · ${cmp(worst)}</div></div>`:''}</div>`;
+}
 function render(){
   $('#out').hidden=false;
   const d=DATA;
@@ -100,6 +122,7 @@ function render(){
     <div class="k"><div class="lab">Your overall score</div><div class="val">${fmt(c.overall)}<small> / 5</small></div><div>${p?delta(c.overall,p.overall)+` <span class="sub">vs ${fmt(p.overall)} in ${d.prev}</span>`:''}</div></div>
     <div class="k"><div class="lab">Ratings received</div><div class="val">${c.n}</div><div class="sub">${p?p.n+' in '+d.prev:''}</div></div>
     <div class="k"><div class="lab">${R.role==='teacher'?'All teachers':'All staff'} average</div><div class="val">${fmt(inst)}</div></div></div></div>
+  ${badges(R,c)}
   <div class="card"><h3>Score by question</h3><div class="legend"><span><i class="sw" style="background:var(--navy)"></i>${d.year}</span>${p?`<span><i class="sw" style="background:var(--prev)"></i>${d.prev}</span>`:''}<span><i class="sw" style="background:var(--red);width:3px"></i>${R.role==='teacher'?'all teachers':'all staff'} average</span></div>
     ${R.labels.map((l,i)=>`<div class="qbar"><div class="lb">${esc(l)}</div><div class="bars"><div style="width:${(c.q[i]||0)/5*100}%"></div>${p?`<div class="p" style="width:${(p.q[i]||0)/5*100}%"></div>`:''}${R.institute[i]!=null?`<i class="avg" style="left:${R.institute[i]/5*100}%"></i>`:''}</div><div class="v">${fmt(c.q[i])}</div><div class="d">${p?delta(c.q[i],p.q[i])+' since '+d.prev+' · ':''}average ${fmt(R.institute[i])}</div></div>`).join('')}</div>
   ${R.summary?`<div class="card"><h3>✨ In short</h3><div class="sub">A summary of all your comments, written by AI.</div><div class="summary">${esc(R.summary).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}</div></div>`:''}

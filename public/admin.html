@@ -3,10 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MYT Pulse · Admin</title>
+<title>Feedback Dashboard · Mayank Tutorials</title>
+<link rel="icon" href="/favicon.png">
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Lora:wght@600;700&display=swap" rel="stylesheet">
 <script src="/vendor/xlsx.full.min.js" defer></script>
 <style>
 :root{--navy:#203864;--navy-2:#3a5a96;--red:#DD152B;--ink:#16213a;--ink-2:#4a5672;--muted:#8a93a8;--line:#e3e7ef;--bg:#f4f6fa;--card:#fff;--soft:#eef2f9;--prev:#b8c0cf;--up:#14804a;--down:#c4182b}
@@ -15,15 +16,19 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Plus Jakar
 button,select,input{font:inherit;color:inherit}
 button{cursor:pointer}
 a{color:var(--navy)}
-header{background:var(--navy);color:#fff;padding:0 20px}
-header .in{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:18px;height:58px}
-.brand{font-weight:800;font-size:17px}.brand b{color:#ff4d5e}.brand small{font-weight:500;opacity:.7;margin-left:6px;font-size:12px}
-nav{display:flex;gap:4px;margin-left:16px;overflow-x:auto}
-nav button{background:none;border:0;color:#c9d3e8;padding:8px 12px;border-radius:9px;font-weight:600;white-space:nowrap}
-nav button.on{background:rgba(255,255,255,.14);color:#fff}
+header{background:#fff;padding:0 20px;border-bottom:3px solid #0E8AC8;box-shadow:0 2px 10px rgba(22,33,58,.06);position:sticky;top:0;z-index:20}
+header .in{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:18px;height:64px}
+.brand{display:flex;align-items:center;gap:10px;white-space:nowrap}
+.brand img{height:42px;width:auto}
+.brand div{line-height:1.15}.brand b{display:block;font-family:Lora,Georgia,serif;color:var(--red);font-size:16px;letter-spacing:.3px}.brand small{color:var(--muted);font-size:12px;font-weight:600}
+nav{display:flex;gap:4px;margin-left:10px;overflow-x:auto}
+nav button{background:none;border:0;color:var(--ink-2);padding:8px 12px;border-radius:9px;font-weight:700;white-space:nowrap}
+nav button:hover{background:var(--soft)}
+nav button.on{background:var(--navy);color:#fff}
 .chips{margin-left:auto;display:flex;gap:8px}
-.chip{font-size:12px;font-weight:700;padding:5px 10px;border-radius:99px;background:rgba(255,255,255,.12);white-space:nowrap}
-.chip.live{background:#1f9d5c}.chip.off{background:#7a8399}
+.chip{font-size:12px;font-weight:700;padding:5px 10px;border-radius:99px;background:#eef1f6;color:var(--ink-2);white-space:nowrap}
+.chip.live{background:#e3f6ec;color:#14804a}.chip.off{background:#eef1f6;color:var(--muted)}
+@media(max-width:860px){.chips{display:none}.brand div{display:none}}
 main{max-width:1280px;margin:0 auto;padding:18px 20px 60px}
 .filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
 .filters select,.filters input{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 10px;min-width:150px}
@@ -67,7 +72,7 @@ td.sc{text-align:center;font-weight:700;border-radius:6px;border:2px solid #fff;
 .empty{color:var(--muted);text-align:center;padding:30px 10px}
 .list .item{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid #f0f2f6}
 .list .item:first-child{border-top:0}
-.btn{border:0;background:var(--navy);color:#fff;border-radius:10px;padding:9px 14px;font-weight:700}
+.btn{white-space:nowrap;border:0;background:var(--navy);color:#fff;border-radius:10px;padding:9px 14px;font-weight:700}
 .btn.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
 .btn.red{background:var(--red)}
 .btn.sm{padding:5px 10px;font-size:12.5px;border-radius:8px}
@@ -140,7 +145,7 @@ async function api(path,body){
   return d;
 }
 function loginView(msg){
-  $('#root').innerHTML=`<div class="login"><div class="brand" style="color:var(--navy)">MYT <b>Pulse</b> admin</div><p class="dim">Mayank Tutorials feedback dashboard</p><form id="lf"><input type="password" id="pw" placeholder="Admin password" autofocus><button class="btn" style="width:100%">Log in</button><p class="err" id="le">${esc(msg||'')}</p></form></div>`;
+  $('#root').innerHTML=`<div class="login"><img src="/logo.jpg" alt="Mayank Tutorials" style="width:100%;height:auto"><p class="dim" style="text-align:center;margin:8px 0 0">Feedback dashboard · admin</p><form id="lf"><input type="password" id="pw" placeholder="Admin password" autofocus><button class="btn" style="width:100%">Log in</button><p class="err" id="le">${esc(msg||'')}</p></form></div>`;
   $('#lf').onsubmit=async e=>{e.preventDefault();try{const d=await api('login',{password:$('#pw').value});TOKEN=d.token;sessionStorage.setItem('pulse-admin',TOKEN);boot()}catch(err){$('#le').textContent=err.message}};
 }
 
@@ -190,7 +195,7 @@ function shell(){
   const s=D.settings;
   const open=s.form_open==='1', rel=s.results_released==='1';
   const batches=F.centre?D.batches.filter(b=>b.centre===F.centre).map(b=>b.batch):[...new Set(D.batches.map(b=>b.batch))];
-  $('#root').innerHTML=`<header><div class="in"><div class="brand">MYT <b>Pulse</b><small>${D.year} vs ${D.prev}</small></div>
+  $('#root').innerHTML=`<header><div class="in"><div class="brand"><img src="/emblem.jpg" alt=""><div><b>MAYANK TUTORIALS</b><small>Feedback ${D.year} vs ${D.prev}</small></div></div>
     <nav>${[['overview','Overview'],['teacher','Teachers'],['staff','Staff'],['comments','Comments'],['setup','Setup']].map(([k,l])=>`<button data-tab="${k}" class="${TAB===k?'on':''}">${l}</button>`).join('')}</nav>
     <div class="chips"><span class="chip ${open?'live':'off'}">Form ${open?'open':'closed'}</span><span class="chip ${rel?'live':'off'}">Results ${rel?'visible to staff':'hidden'}</span></div></div></header>
     <main><div class="filters" ${TAB==='setup'?'hidden':''}>
@@ -234,7 +239,7 @@ function overview(){
   const dk=[...days.keys()].sort(), max=Math.max(1,...days.values());
   const dayChart=dk.length?`<div class="days">${dk.map(d=>`<div class="d" data-tip="${esc(new Date(d).toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'}))}: ${days.get(d)} responses"><b>${days.get(d)}</b><i style="height:${days.get(d)/max*100}%"></i></div>`).join('')}</div><div class="daylabels">${dk.map(d=>`<span>${new Date(d).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span>`).join('')}</div>`:`<div class="empty">No responses yet for ${y}. They will appear here live.</div>`;
   const brows=D.batches.filter(b=>b.active&&inF(b)).map(b=>{const n=sc.filter(s=>s.centre===b.centre&&s.batch===b.batch).length;return{...b,n,rate:b.students?n/b.students:null}}).sort((a,b)=>(a.rate??9)-(b.rate??9)||a.n-b.n);
-  const rateTable=`<div class="tablewrap" style="max-height:330px;overflow-y:auto"><table><thead><tr><th>Batch</th><th class="num">Responses</th><th>Response rate</th></tr></thead><tbody>${brows.map(b=>`<tr><td><span class="name">${esc(b.batch)}</span> <span class="dim">· ${esc(b.centre)}</span></td><td class="num">${b.n}${b.students?` / ${b.students}`:''}</td><td>${b.rate==null?'<span class="dim">add student count</span>':`<div class="rate ${b.rate<.4?'low':''}"><div class="track"><i style="width:${Math.min(100,b.rate*100)}%"></i></div><b>${pct(b.rate)}</b></div>`}</td></tr>`).join('')}</tbody></table></div>`;
+  const rateTable=`<div class="tablewrap" style="max-height:330px;overflow-y:auto"><table><thead><tr><th>Batch</th><th class="num">Responses</th><th>Response rate</th><th></th></tr></thead><tbody>${brows.map(b=>`<tr><td><span class="name">${esc(b.batch)}</span> <span class="dim">· ${esc(b.centre)}</span></td><td class="num">${b.n}${b.students?` / ${b.students}`:''}</td><td>${b.rate==null?'<span class="dim">add student count</span>':`<div class="rate ${b.rate<.4?'low':''}"><div class="track"><i style="width:${Math.min(100,b.rate*100)}%"></i></div><b>${pct(b.rate)}</b></div>`}</td><td><button class="btn ghost sm" data-remind="${esc(b.centre)}|${esc(b.batch)}|${b.n}|${b.students||''}" title="Copy a WhatsApp reminder for this batch">📋 Reminder</button></td></tr>`).join('')}</tbody></table></div>`;
   h+=`<div class="grid two" style="margin-top:14px"><div class="card"><h3>Responses per day</h3><div class="sub">${y} · live</div>${dayChart}</div>
      <div class="card"><h3>Who to remind</h3><div class="sub">Lowest response rate first. Red is below 40%.</div>${rateTable}</div></div>`;
   // centre table
@@ -391,6 +396,10 @@ function bindView(){
   const v=$('#view');
   v.querySelectorAll('[data-sort]').forEach(t=>t.onclick=()=>{const k=t.dataset.sort;SORT={k,d:SORT.k===k?-SORT.d:(k==='n'?1:-1)};draw()});
   v.querySelectorAll('[data-person]').forEach(t=>t.onclick=()=>openPerson(t.dataset.person,t.dataset.role));
+  v.querySelectorAll('[data-remind]').forEach(b=>b.onclick=async()=>{const[c,bt,n,st]=b.dataset.remind.split('|');
+    const left=st?Math.max(0,st-n):null;
+    const msg=`Dear ${bt} students & parents (${c}) 🙏\n\nOur annual feedback is open till Friday. It's 100% anonymous and takes 5 minutes. You'll only see your own teachers.\n\n${st?`So far ${n} of ${st} from your batch have shared feedback. ${left?`Let's get the remaining ${left}!`:'Amazing, everyone is in!'}`:`${n} from your batch have shared so far.`}\n\n👉 ${location.origin}\n\nThank you!\n– Team Mayank Tutorials`;
+    try{await navigator.clipboard.writeText(msg);toast('Reminder copied. Paste it in the batch WhatsApp group.')}catch{prompt('Copy this message:',msg)}});
   v.querySelectorAll('[data-ck]').forEach(b=>b.onclick=()=>{CK=b.dataset.ck;draw()});
   v.querySelectorAll('[data-hidek]').forEach(b=>b.onclick=()=>hideComment(b.dataset.hidek==='sub'?'sub':'rating',+b.dataset.id,+b.dataset.h,draw));
   const rc=$('#recheck');if(rc)rc.onclick=async()=>{rc.disabled=true;try{const r=await api('recheck',{});toast(`Checked ${r.checked}, hid ${r.hidden}. ${r.remaining} left.`);boot()}catch(e){toast(e.message)}};
