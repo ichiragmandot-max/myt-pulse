@@ -167,7 +167,7 @@ function render(){
   if(step==='welcome'){
     const done=localStorage.getItem('pulse-done');
     h=`<div class="fade"><div class="hero"><span class="kicker">Annual Feedback ${new Date().getFullYear()}</span>
-      <h1>Your voice makes your <em>teachers</em> better.</h1>
+      <h1>Your voice makes your <em>teachers & staff</em> better.</h1>
       <p>About 5 minutes. Students and parents are both welcome. Rate only the teachers and staff you know, and skip any question you like.</p>
       ${PULSE&&PULSE.total?`<div class="live"><i></i>${PULSE.total.toLocaleString('en-IN')} students &amp; parents have shared feedback so far</div>`:''}</div>
       <div class="card">
