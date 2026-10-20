@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MYT Pulse · My Feedback</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#203864">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#203864;--red:#DD152B;--ink:#16213a;--ink-2:#4a5672;--muted:#8a93a8;--line:#e3e7ef;--bg:#f4f6fa;--prev:#b8c0cf;--up:#14804a;--down:#c4182b}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:15px;line-height:1.5}
+button,input{font:inherit}
+header{background:var(--navy);color:#fff;padding:14px 16px}
+header .in{max-width:760px;margin:0 auto;display:flex;align-items:center}
+.brand{font-weight:800;font-size:17px}.brand b{color:#ff4d5e}.brand small{display:block;font-weight:500;font-size:11px;opacity:.75;letter-spacing:.3px}
+.out{margin-left:auto;background:none;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:9px;padding:6px 10px;font-size:13px;cursor:pointer}
+main{max-width:760px;margin:0 auto;padding:20px 16px 60px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px}
+h1{font-size:24px;margin:4px 0 4px;letter-spacing:-.3px}
+h3{margin:0 0 4px;font-size:16px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:12px}
+.login{max-width:380px;margin:10vh auto}
+.login input{width:100%;font-size:26px;letter-spacing:10px;text-align:center;border:1.5px solid var(--line);border-radius:12px;padding:12px;margin:14px 0}
+.btn{width:100%;border:0;border-radius:12px;padding:13px;font-weight:700;background:var(--navy);color:#fff;cursor:pointer}
+.err{color:var(--red);font-weight:600;font-size:14px;min-height:20px}
+.hero{display:flex;gap:16px;flex-wrap:wrap}
+.hero .k{flex:1;min-width:140px}
+.hero .lab{color:var(--ink-2);font-weight:600;font-size:13px}
+.hero .val{font-size:38px;font-weight:800;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.hero .val small{font-size:16px;color:var(--muted)}
+.delta{font-weight:700;white-space:nowrap}.delta.up{color:var(--up)}.delta.down{color:var(--down)}.delta.flat{color:var(--muted)}
+.legend{display:flex;gap:14px;font-size:12.5px;color:var(--ink-2);margin-bottom:6px;flex-wrap:wrap}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block;vertical-align:-1px;margin-right:5px}
+.qbar{display:grid;grid-template-columns:150px 1fr 44px;gap:10px;align-items:center;padding:8px 0;border-top:1px solid #f0f2f6}
+.qbar:first-of-type{border-top:0}
+.qbar .lb{font-weight:600;font-size:13.5px}
+.qbar .bars{position:relative;display:grid;gap:3px}
+.qbar .bars div{height:11px;border-radius:0 5px 5px 0;background:var(--navy)}
+.qbar .bars div.p{background:var(--prev);height:6px}
+.qbar .bars .avg{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--red);border-radius:1px}
+.qbar .v{font-weight:800;text-align:right;font-variant-numeric:tabular-nums}
+.qbar .d{grid-column:2/4;font-size:12px;color:var(--muted);margin-top:-2px}
+@media(max-width:480px){.qbar{grid-template-columns:110px 1fr 40px}}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);text-align:left;padding:6px;border-bottom:1px solid var(--line)}
+td{padding:8px 6px;border-bottom:1px solid #f0f2f6}
+.num{text-align:right}
+.tw{overflow-x:auto;margin:0 -4px}
+.tw td:first-child{min-width:120px}
+.tw th,.tw td{white-space:nowrap}.tw td:first-child{white-space:normal}
+.summary{white-space:pre-wrap;border-left:4px solid var(--navy);padding:4px 0 4px 14px}
+.c{background:#f8f9fc;border-radius:12px;padding:10px 12px;margin-bottom:8px;white-space:pre-wrap;word-break:break-word}
+.note{font-size:13px;color:var(--ink-2);background:#eef2f9;border-radius:12px;padding:10px 12px}
+.tabs{display:flex;gap:8px;margin-bottom:14px}
+.tabs button{border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:7px 14px;font-weight:700;cursor:pointer}
+.tabs button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.more{background:none;border:0;color:var(--navy);font-weight:700;cursor:pointer;padding:6px 0}
+</style>
+</head>
+<body>
+<header><div class="in"><div class="brand">MYT <b>Pulse</b><small>MY FEEDBACK</small></div><button class="out" id="out" hidden>Log out</button></div></header>
+<main id="app"></main>
+<script>
+const $=s=>document.querySelector(s), app=$('#app');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=v=>v==null?'–':v.toFixed(2);
+const delta=(c,p)=>{if(c==null||p==null)return'';const d=c-p,cl=Math.abs(d)<.05?'flat':d>0?'up':'down';return`<span class="delta ${cl}">${d>0?'▲':d<0?'▼':'■'} ${Math.abs(d).toFixed(2)}</span>`};
+let PIN=null, DATA=null, ROLE=0;
+function login(msg){
+  $('#out').hidden=true;
+  app.innerHTML=`<div class="card login"><h1>Your feedback</h1><p class="sub" style="margin:0">Enter the PIN you received by SMS. Only you can see this page.</p>
+    <form id="f"><input id="pin" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="••••••" autofocus><button class="btn">Open</button></form><div class="err" id="e">${esc(msg||'')}</div></div>`;
+  $('#f').onsubmit=e=>{e.preventDefault();open($('#pin').value)};
+}
+async function open(pin){
+  try{
+    const r=await fetch('/api/me',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({pin})});
+    const d=await r.json();
+    if(!r.ok)return login(d.error);
+    PIN=pin; try{sessionStorage.setItem('pulse-pin',pin)}catch{}
+    if(location.hash)history.replaceState(null,'',location.pathname);
+    DATA=d; ROLE=0; render();
+  }catch(e){login('Network problem. Please try again.')}
+}
+function render(){
+  $('#out').hidden=false;
+  const d=DATA;
+  if(!d.released){app.innerHTML=`<div class="card"><h1>Hi ${esc(d.name)} 👋</h1><p>This year's feedback is still being collected. Your results will appear here once it closes. Please check back after we let you know.</p></div>`;return}
+  if(!d.roles.length){app.innerHTML=`<div class="card"><h1>Hi ${esc(d.name)} 👋</h1><p>There are no ratings for you yet.</p></div>`;return}
+  const R=d.roles[ROLE], c=R.current, p=R.previous;
+  const tabs=d.roles.length>1?`<div class="tabs">${d.roles.map((r,i)=>`<button data-r="${i}" class="${i===ROLE?'on':''}">As ${r.role==='teacher'?'teacher':'staff'}</button>`).join('')}</div>`:'';
+  const instAvg=R.institute.filter(x=>x!=null), inst=instAvg.length?instAvg.reduce((a,b)=>a+b,0)/instAvg.length:null;
+  const g=(grp,title)=>grp.list.length?`<div class="card"><h3>${title}</h3><div class="sub">Groups with fewer than ${d.minGroup} ratings are not shown separately, so no student can be identified.${grp.hidden?` (${grp.hidden} small group${grp.hidden>1?'s':''} hidden.)`:''}</div><div class="tw"><table><thead><tr><th></th><th class="num">Ratings</th>${R.labels.map((l,i)=>`<th class="num" title="${esc(l)}">Q${i+1}</th>`).join('')}<th class="num">Overall</th></tr></thead><tbody>${grp.list.map(x=>`<tr><td><b>${esc(x.name)}</b></td><td class="num">${x.n}</td>${x.q.map(v=>`<td class="num">${fmt(v)}</td>`).join('')}<td class="num"><b>${fmt(x.overall)}</b></td></tr>`).join('')}</tbody></table></div></div>`:'';
+  const SHOW=8;
+  app.innerHTML=`${tabs}<div class="card"><h1>Hi ${esc(d.name)} 👋</h1><p class="sub" style="margin:0">Here is what students and parents said about you in ${d.year}. Every response is anonymous. Use it to grow, not to guess who wrote it. 🙂</p></div>
+  <div class="card"><div class="hero">
+    <div class="k"><div class="lab">Your overall score</div><div class="val">${fmt(c.overall)}<small> / 5</small></div><div>${p?delta(c.overall,p.overall)+` <span class="sub">vs ${fmt(p.overall)} in ${d.prev}</span>`:''}</div></div>
+    <div class="k"><div class="lab">Ratings received</div><div class="val">${c.n}</div><div class="sub">${p?p.n+' in '+d.prev:''}</div></div>
+    <div class="k"><div class="lab">${R.role==='teacher'?'All teachers':'All staff'} average</div><div class="val">${fmt(inst)}</div></div></div></div>
+  <div class="card"><h3>Score by question</h3><div class="legend"><span><i class="sw" style="background:var(--navy)"></i>${d.year}</span>${p?`<span><i class="sw" style="background:var(--prev)"></i>${d.prev}</span>`:''}<span><i class="sw" style="background:var(--red);width:3px"></i>${R.role==='teacher'?'all teachers':'all staff'} average</span></div>
+    ${R.labels.map((l,i)=>`<div class="qbar"><div class="lb">${esc(l)}</div><div class="bars"><div style="width:${(c.q[i]||0)/5*100}%"></div>${p?`<div class="p" style="width:${(p.q[i]||0)/5*100}%"></div>`:''}${R.institute[i]!=null?`<i class="avg" style="left:${R.institute[i]/5*100}%"></i>`:''}</div><div class="v">${fmt(c.q[i])}</div><div class="d">${p?delta(c.q[i],p.q[i])+' since '+d.prev+' · ':''}average ${fmt(R.institute[i])}</div></div>`).join('')}</div>
+  ${R.summary?`<div class="card"><h3>✨ In short</h3><div class="sub">A summary of all your comments, written by AI.</div><div class="summary">${esc(R.summary).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}</div></div>`:''}
+  ${g(R.byCentre,'By centre')}${g(R.byBatch,'By batch')}
+  <div class="card"><h3>What they wrote (${R.comments.length})</h3><div class="sub">Shown in random order. Abusive comments were blocked.</div>
+    ${R.comments.slice(0,SHOW).map(t=>`<div class="c">${esc(t)}</div>`).join('')||'<div class="sub">No written comments.</div>'}
+    <div id="rest" hidden>${R.comments.slice(SHOW).map(t=>`<div class="c">${esc(t)}</div>`).join('')}</div>
+    ${R.comments.length>SHOW?`<button class="more" id="more">Show all ${R.comments.length} comments</button>`:''}</div>
+  <div class="note">Q1–Q5 in the tables: ${R.labels.map((l,i)=>`Q${i+1} ${esc(l)}`).join(' · ')}</div>`;
+  app.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{ROLE=+b.dataset.r;render()});
+  const m=$('#more');if(m)m.onclick=()=>{$('#rest').hidden=false;m.remove()};
+}
+$('#out').onclick=()=>{try{sessionStorage.removeItem('pulse-pin')}catch{};PIN=null;login()};
+const fromHash=location.hash.slice(1).replace(/\D/g,'');
+let saved=null;try{saved=sessionStorage.getItem('pulse-pin')}catch{}
+if(fromHash)open(fromHash);else if(saved)open(saved);else login();
+</script>
+</body>
+</html>

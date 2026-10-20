@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MYT Pulse · Admin</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="/vendor/xlsx.full.min.js" defer></script>
+<style>
+:root{--navy:#203864;--navy-2:#3a5a96;--red:#DD152B;--ink:#16213a;--ink-2:#4a5672;--muted:#8a93a8;--line:#e3e7ef;--bg:#f4f6fa;--card:#fff;--soft:#eef2f9;--prev:#b8c0cf;--up:#14804a;--down:#c4182b}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:14px;line-height:1.45}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--navy)}
+header{background:var(--navy);color:#fff;padding:0 20px}
+header .in{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:18px;height:58px}
+.brand{font-weight:800;font-size:17px}.brand b{color:#ff4d5e}.brand small{font-weight:500;opacity:.7;margin-left:6px;font-size:12px}
+nav{display:flex;gap:4px;margin-left:16px;overflow-x:auto}
+nav button{background:none;border:0;color:#c9d3e8;padding:8px 12px;border-radius:9px;font-weight:600;white-space:nowrap}
+nav button.on{background:rgba(255,255,255,.14);color:#fff}
+.chips{margin-left:auto;display:flex;gap:8px}
+.chip{font-size:12px;font-weight:700;padding:5px 10px;border-radius:99px;background:rgba(255,255,255,.12);white-space:nowrap}
+.chip.live{background:#1f9d5c}.chip.off{background:#7a8399}
+main{max-width:1280px;margin:0 auto;padding:18px 20px 60px}
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+.filters select,.filters input{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 10px;min-width:150px}
+.filters .note{color:var(--muted);font-size:12.5px;margin-left:auto}
+.grid{display:grid;gap:14px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+.card h3{margin:0 0 2px;font-size:15px}
+.card .sub{color:var(--muted);font-size:12.5px;margin-bottom:12px}
+.kpi .lab{color:var(--ink-2);font-weight:600;font-size:12.5px}
+.kpi .val{font-size:30px;font-weight:800;letter-spacing:-.5px;margin:4px 0 2px;font-variant-numeric:tabular-nums}
+.kpi .val small{font-size:15px;color:var(--muted);font-weight:600}
+.kpi .cmp{font-size:12.5px;color:var(--muted)}
+.delta{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.delta.up{color:var(--up)}.delta.down{color:var(--down)}.delta.flat{color:var(--muted)}
+.two{grid-template-columns:1.4fr 1fr}
+@media(max-width:900px){.two{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:700;text-align:left;padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap;user-select:none}
+th.s{cursor:pointer}th.s:hover{color:var(--ink)}
+th.num,td.num{text-align:right}
+td{padding:8px 8px;border-bottom:1px solid #f0f2f6;vertical-align:middle}
+tr.click{cursor:pointer}tr.click:hover td{background:#f8f9fc}
+td.sc{text-align:center;font-weight:700;border-radius:6px;border:2px solid #fff;min-width:52px}
+.tablewrap{overflow-x:auto}
+.name{font-weight:700}
+.dim{color:var(--muted)}
+.rate{display:flex;align-items:center;gap:8px;min-width:140px}
+.rate .track{flex:1;height:8px;background:#eef1f6;border-radius:4px;overflow:hidden}
+.rate .track i{display:block;height:100%;background:var(--navy);border-radius:0 4px 4px 0}
+.rate.low .track i{background:var(--red)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin:4px 0 10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.days{display:flex;align-items:flex-end;gap:4px;height:160px;padding-top:10px;border-bottom:1px solid var(--line);position:relative}
+.days .d{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:14px;position:relative}
+.days .d i{display:block;width:100%;max-width:34px;background:var(--navy);border-radius:4px 4px 0 0}
+.days .d:hover i{background:var(--navy-2)}
+.days .d b{font-size:11px;color:var(--ink-2);margin-bottom:3px}
+.daylabels{display:flex;gap:4px;font-size:11px;color:var(--muted);margin-top:4px}.daylabels span{flex:1;text-align:center;min-width:14px}
+.empty{color:var(--muted);text-align:center;padding:30px 10px}
+.list .item{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid #f0f2f6}
+.list .item:first-child{border-top:0}
+.btn{border:0;background:var(--navy);color:#fff;border-radius:10px;padding:9px 14px;font-weight:700}
+.btn.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
+.btn.red{background:var(--red)}
+.btn.sm{padding:5px 10px;font-size:12.5px;border-radius:8px}
+.btn:disabled{opacity:.5}
+/* drawer */
+.scrim{position:fixed;inset:0;background:rgba(15,22,40,.45);z-index:30;display:none}
+.scrim.on{display:block}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(760px,100vw);background:var(--bg);z-index:31;overflow-y:auto;transform:translateX(100%);transition:transform .25s ease;box-shadow:-10px 0 40px rgba(0,0,0,.15)}
+.drawer.on{transform:none}
+.drawer .hd{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line);padding:16px 20px;display:flex;align-items:center;gap:14px;z-index:2}
+.drawer .bd{padding:18px 20px;display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+.drawer .bd>*{min-width:0}
+.drawer .kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.x{margin-left:auto;background:none;border:1px solid var(--line);border-radius:10px;width:36px;height:36px;font-size:18px}
+.avatar{width:46px;height:46px;border-radius:14px;background:var(--navy);color:#fff;font-weight:800;display:grid;place-items:center}
+.avatar.staff{background:var(--red)}
+.qbar{display:grid;grid-template-columns:190px 1fr 52px 64px;gap:10px;align-items:center;padding:7px 0}
+.qbar .lb{font-weight:600;font-size:13px}
+.qbar .bars{display:grid;gap:3px}
+.qbar .bars div{height:10px;border-radius:0 5px 5px 0;background:var(--navy)}
+.qbar .bars div.p{background:var(--prev);height:6px}
+.qbar .v{font-weight:800;text-align:right}
+@media(max-width:600px){.qbar{grid-template-columns:110px 1fr 40px 56px}}
+.dist{display:flex;height:22px;border-radius:6px;overflow:hidden;gap:2px;background:#fff}
+.dist i{display:block;height:100%}
+.comments .c{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start}
+.comments .c.hid{opacity:.55;background:#fafafa}
+.comments .c .t{flex:1;white-space:pre-wrap;word-break:break-word}
+.comments .c .m{font-size:11.5px;color:var(--muted);margin-top:4px}
+.summary{background:#fff;border:1px solid var(--line);border-left:4px solid var(--navy);border-radius:12px;padding:12px 14px;white-space:pre-wrap}
+.tag{font-size:11px;font-weight:700;border-radius:99px;padding:2px 8px;background:var(--soft);color:var(--navy);white-space:nowrap}
+.tag.red{background:#fde8ea;color:var(--red)}.tag.amber{background:#fff2d6;color:#8a5a00}
+/* login */
+.login{max-width:360px;margin:12vh auto;background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px}
+.login input{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin:12px 0}
+.err{color:var(--red);font-weight:600;font-size:13px}
+.setup .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 0;border-top:1px solid #f0f2f6}
+.setup .row:first-of-type{border-top:0}
+.setup .row .txt{flex:1;min-width:240px}
+.switch{position:relative;width:46px;height:26px;border-radius:99px;background:#cfd5e1;border:0;flex:0 0 auto;transition:background .15s}
+.switch::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
+.switch.on{background:#1f9d5c}.switch.on::after{left:23px}
+.problems{color:var(--red);font-size:13px;margin-top:8px}
+.tip{position:fixed;pointer-events:none;background:var(--ink);color:#fff;font-size:12px;padding:6px 9px;border-radius:8px;z-index:50;display:none;white-space:nowrap}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.att{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:800px){.att{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="scrim" id="scrim"></div><aside class="drawer" id="drawer"></aside>
+<div class="tip" id="tip"></div><div class="toast" id="toast"></div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=v=>v==null||isNaN(v)?'–':v.toFixed(2);
+const pct=v=>v==null?'–':Math.round(v*100)+'%';
+const initials=n=>n.replace(/\b(sir|mam|maam|madam)\b/ig,'').trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+const LABELS={teacher:['Clarity','Doubt solving','Approachable','Knowledge','Punctuality'],staff:['Helpful','Beyond expectations','Communication','Timeliness','Resolves issues']};
+const OVERALL_L=['Would recommend','Marks improved','Communication & support'];
+let TOKEN=sessionStorage.getItem('pulse-admin');
+let D=null, TAB=localStorage.getItem('pulse-tab')||'overview', F={centre:'',batch:'',q:''}, SORT={k:'overall',d:-1};
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2800)}
+async function api(path,body){
+  const r=await fetch('/api/admin/'+path,{method:body?'POST':'GET',headers:{'content-type':'application/json',authorization:'Bearer '+TOKEN},body:body?JSON.stringify(body):undefined});
+  const d=await r.json().catch(()=>({}));
+  if(r.status===401&&path!=='login'){sessionStorage.removeItem('pulse-admin');TOKEN=null;loginView();throw new Error('Logged out')}
+  if(!r.ok){const e=new Error(d.error||'Error');e.data=d;throw e}
+  return d;
+}
+function loginView(msg){
+  $('#root').innerHTML=`<div class="login"><div class="brand" style="color:var(--navy)">MYT <b>Pulse</b> admin</div><p class="dim">Mayank Tutorials feedback dashboard</p><form id="lf"><input type="password" id="pw" placeholder="Admin password" autofocus><button class="btn" style="width:100%">Log in</button><p class="err" id="le">${esc(msg||'')}</p></form></div>`;
+  $('#lf').onsubmit=async e=>{e.preventDefault();try{const d=await api('login',{password:$('#pw').value});TOKEN=d.token;sessionStorage.setItem('pulse-admin',TOKEN);boot()}catch(err){$('#le').textContent=err.message}};
+}
+
+// ---------------- data model ----------------
+function prep(d){
+  const sc=d.subCols,rc=d.ratCols;
+  const toObj=(cols,row)=>{const o={};cols.forEach((c,i)=>o[c]=row[i]);return o};
+  d.S=d.subs.map(r=>toObj(sc,r)); d.R=d.rats.map(r=>toObj(rc,r));
+  const canon=n=>d.aliases[n]||n;
+  for(const r of d.R)r.p=canon(r.person);
+  d.students={};for(const b of d.batches)d.students[b.centre+'|'+b.batch]=b.students||0;
+  d.centres=[...new Set([...d.batches.map(b=>b.centre),...d.S.map(s=>s.centre)])];
+  d.year0=d.year;
+  d.sum={};for(const s of d.summaries)d.sum[s.person+'|'+s.role]=s;
+  return d;
+}
+const inF=x=>(!F.centre||x.centre===F.centre)&&(!F.batch||x.batch===F.batch);
+const subs=y=>D.S.filter(s=>s.year===y&&inF(s));
+const rats=(y,role)=>D.R.filter(r=>r.year===y&&(!role||r.role===role)&&inF(r));
+function mean(a){const v=a.filter(x=>x!=null);return v.length?v.reduce((p,c)=>p+c,0)/v.length:null}
+function aggR(rows){ // 5 dims + overall
+  const q=[1,2,3,4,5].map(i=>mean(rows.map(r=>r['r'+i])));
+  return{n:rows.length,q,overall:mean(q)}
+}
+function people(role,y){
+  const m=new Map();
+  for(const r of rats(y,role)){if(!m.has(r.p))m.set(r.p,[]);m.get(r.p).push(r)}
+  return m;
+}
+function deltaHTML(cur,prev,dec=2){
+  if(cur==null||prev==null)return'<span class="delta flat">new</span>';
+  const d=cur-prev; const cl=Math.abs(d)<0.05?'flat':d>0?'up':'down';
+  return`<span class="delta ${cl}">${d>0?'▲':d<0?'▼':'■'} ${Math.abs(d).toFixed(dec)}</span>`;
+}
+// Diverging cell colour: red (below avg) – gray (avg) – navy (above). Text stays ink/white for contrast.
+function cellStyle(v,mid){
+  if(v==null)return'';
+  const t=Math.max(-1,Math.min(1,(v-mid)/0.9));
+  let bg,fg='#16213a';
+  if(t>=0){const a=t;bg=`rgba(32,56,100,${0.08+a*0.82})`;if(a>0.55)fg='#fff'}
+  else{const a=-t;bg=`rgba(221,21,43,${0.08+a*0.72})`;if(a>0.6)fg='#fff'}
+  return`background:${bg};color:${fg}`;
+}
+
+// ---------------- shell ----------------
+function shell(){
+  const s=D.settings;
+  const open=s.form_open==='1', rel=s.results_released==='1';
+  const batches=F.centre?D.batches.filter(b=>b.centre===F.centre).map(b=>b.batch):[...new Set(D.batches.map(b=>b.batch))];
+  $('#root').innerHTML=`<header><div class="in"><div class="brand">MYT <b>Pulse</b><small>${D.year} vs ${D.prev}</small></div>
+    <nav>${[['overview','Overview'],['teacher','Teachers'],['staff','Staff'],['comments','Comments'],['setup','Setup']].map(([k,l])=>`<button data-tab="${k}" class="${TAB===k?'on':''}">${l}</button>`).join('')}</nav>
+    <div class="chips"><span class="chip ${open?'live':'off'}">Form ${open?'open':'closed'}</span><span class="chip ${rel?'live':'off'}">Results ${rel?'visible to staff':'hidden'}</span></div></div></header>
+    <main><div class="filters" ${TAB==='setup'?'hidden':''}>
+      <select id="fy" title="Which year to view">${[D.year0,D.year0-1].map(y=>`<option value="${y}" ${D.year===y?'selected':''}>${y}${y===D.year0?' (this year)':''}</option>`).join('')}</select><select id="fc"><option value="">All centres</option>${D.centres.map(c=>`<option ${F.centre===c?'selected':''}>${esc(c)}</option>`).join('')}</select>
+      <select id="fb"><option value="">All batches</option>${batches.map(b=>`<option ${F.batch===b?'selected':''}>${esc(b)}</option>`).join('')}</select>
+      ${['teacher','staff','comments'].includes(TAB)?`<input id="fq" placeholder="Search name or text…" value="${esc(F.q)}">`:''}
+      <button class="btn ghost sm" id="refresh">↻ Refresh</button>
+      <span class="note">Comparing this year with ${D.prev} using the same questions. Scores are out of 5.</span></div>
+    <div id="view"></div></main>`;
+  document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{TAB=b.dataset.tab;localStorage.setItem('pulse-tab',TAB);shell()});
+  const fy=$('#fy');if(fy)fy.onchange=()=>{D.year=+fy.value;D.prev=D.year-1;shell()};
+  const fc=$('#fc');if(fc){fc.onchange=()=>{F.centre=fc.value;F.batch='';shell()};$('#fb').onchange=()=>{F.batch=$('#fb').value;shell()}}
+  const fq=$('#fq');if(fq)fq.oninput=()=>{F.q=fq.value;draw(true)};
+  $('#refresh')&&($('#refresh').onclick=boot);
+  draw();
+}
+function draw(keepFocus){
+  const v=$('#view');
+  if(TAB==='overview')v.innerHTML=overview();
+  else if(TAB==='teacher'||TAB==='staff')v.innerHTML=peopleTable(TAB);
+  else if(TAB==='comments')v.innerHTML=commentsView();
+  else v.innerHTML=setupView();
+  bindView();
+}
+
+// ---------------- overview ----------------
+function overview(){
+  const y=D.year,p=D.prev, sc=subs(y), sp=subs(p);
+  const students=Object.entries(D.students).filter(([k])=>{const[c,b]=k.split('|');return inF({centre:c,batch:b})}).reduce((a,[,v])=>a+v,0);
+  const tq=aggR(rats(y,'teacher')),tp=aggR(rats(p,'teacher')),sq=aggR(rats(y,'staff')),spp=aggR(rats(p,'staff'));
+  const o=[0,1,2].map(i=>mean(sc.map(s=>s['q'+(i+1)]))), op=[0,1,2].map(i=>mean(sp.map(s=>s['q'+(i+1)])));
+  const k=(lab,val,cmp)=>`<div class="card kpi"><div class="lab">${lab}</div><div class="val">${val}</div><div class="cmp">${cmp}</div></div>`;
+  let h=`<div class="grid kpis">
+    ${k('Responses',`${sc.length.toLocaleString('en-IN')}${students?` <small>/ ${students.toLocaleString('en-IN')}</small>`:''}`,`${students?`<b>${pct(sc.length/students)}</b> response rate · `:''}${sp.length.toLocaleString('en-IN')} in ${p}`)}
+    ${OVERALL_L.map((l,i)=>k(l,`${fmt(o[i])}`,`${deltaHTML(o[i],op[i])} vs ${fmt(op[i])} in ${p}`)).join('')}
+    ${k('Teachers (avg)',fmt(tq.overall),`${deltaHTML(tq.overall,tp.overall)} vs ${fmt(tp.overall)} · ${tq.n.toLocaleString('en-IN')} ratings`)}
+    ${k('Staff (avg)',fmt(sq.overall),`${deltaHTML(sq.overall,spp.overall)} vs ${fmt(spp.overall)} · ${sq.n.toLocaleString('en-IN')} ratings`)}
+  </div>`;
+  // responses per day + response rate by batch (who to chase)
+  const days=new Map();for(const s of sc){const d=s.ts.slice(0,10);days.set(d,(days.get(d)||0)+1)}
+  const dk=[...days.keys()].sort(), max=Math.max(1,...days.values());
+  const dayChart=dk.length?`<div class="days">${dk.map(d=>`<div class="d" data-tip="${esc(new Date(d).toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'}))}: ${days.get(d)} responses"><b>${days.get(d)}</b><i style="height:${days.get(d)/max*100}%"></i></div>`).join('')}</div><div class="daylabels">${dk.map(d=>`<span>${new Date(d).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span>`).join('')}</div>`:`<div class="empty">No responses yet for ${y}. They will appear here live.</div>`;
+  const brows=D.batches.filter(b=>b.active&&inF(b)).map(b=>{const n=sc.filter(s=>s.centre===b.centre&&s.batch===b.batch).length;return{...b,n,rate:b.students?n/b.students:null}}).sort((a,b)=>(a.rate??9)-(b.rate??9)||a.n-b.n);
+  const rateTable=`<div class="tablewrap" style="max-height:330px;overflow-y:auto"><table><thead><tr><th>Batch</th><th class="num">Responses</th><th>Response rate</th></tr></thead><tbody>${brows.map(b=>`<tr><td><span class="name">${esc(b.batch)}</span> <span class="dim">· ${esc(b.centre)}</span></td><td class="num">${b.n}${b.students?` / ${b.students}`:''}</td><td>${b.rate==null?'<span class="dim">add student count</span>':`<div class="rate ${b.rate<.4?'low':''}"><div class="track"><i style="width:${Math.min(100,b.rate*100)}%"></i></div><b>${pct(b.rate)}</b></div>`}</td></tr>`).join('')}</tbody></table></div>`;
+  h+=`<div class="grid two" style="margin-top:14px"><div class="card"><h3>Responses per day</h3><div class="sub">${y} · live</div>${dayChart}</div>
+     <div class="card"><h3>Who to remind</h3><div class="sub">Lowest response rate first. Red is below 40%.</div>${rateTable}</div></div>`;
+  // centre table
+  const cen=D.centres.filter(c=>!F.centre||c===F.centre).map(c=>{
+    const f=x=>x.centre===c&&(!F.batch||x.batch===F.batch);
+    const s=D.S.filter(x=>x.year===y&&f(x)), s0=D.S.filter(x=>x.year===p&&f(x));
+    const st=Object.entries(D.students).filter(([k])=>k.startsWith(c+'|')&&(!F.batch||k.endsWith('|'+F.batch))).reduce((a,[,v])=>a+v,0);
+    const t=aggR(D.R.filter(r=>r.year===y&&r.role==='teacher'&&f(r))),t0=aggR(D.R.filter(r=>r.year===p&&r.role==='teacher'&&f(r)));
+    const f2=aggR(D.R.filter(r=>r.year===y&&r.role==='staff'&&f(r))),f0=aggR(D.R.filter(r=>r.year===p&&r.role==='staff'&&f(r)));
+    return{c,n:s.length,n0:s0.length,st,o:[1,2,3].map(i=>mean(s.map(x=>x['q'+i]))),o0:[1,2,3].map(i=>mean(s0.map(x=>x['q'+i]))),t:t.overall,t0:t0.overall,f:f2.overall,f0:f0.overall}});
+  const mid=4.1;
+  h+=`<div class="card" style="margin-top:14px"><h3>By centre</h3><div class="sub">Each score shows the change since ${p} underneath. Cell colour: red is below 4.1, navy is above.</div>
+    <div class="legend"><span><i class="sw" style="${cellStyle(3.3,mid)}"></i>below 4.1</span><span><i class="sw" style="${cellStyle(4.1,mid)}"></i>around 4.1</span><span><i class="sw" style="${cellStyle(4.9,mid)}"></i>above 4.1</span></div>
+    <div class="tablewrap"><table><thead><tr><th>Centre</th><th class="num">Responses</th><th class="num">Rate</th>${OVERALL_L.map(l=>`<th class="num">${l}</th>`).join('')}<th class="num">Teachers</th><th class="num">Staff</th></tr></thead><tbody>
+    ${cen.map(r=>`<tr><td class="name">${esc(r.c)}</td><td class="num">${r.n} <div class="dim" style="font-size:11.5px">${r.n0} in ${p}</div></td><td class="num">${r.st?pct(r.n/r.st):'–'}</td>
+      ${r.o.map((v,i)=>`<td class="sc" style="${cellStyle(v,mid)}">${fmt(v)}<div style="font-size:11px;font-weight:600">${v!=null?deltaHTML(v,r.o0[i]):''}</div></td>`).join('')}
+      <td class="sc" style="${cellStyle(r.t,mid)}">${fmt(r.t)}<div style="font-size:11px;font-weight:600">${r.t!=null?deltaHTML(r.t,r.t0):''}</div></td>
+      <td class="sc" style="${cellStyle(r.f,mid)}">${fmt(r.f)}<div style="font-size:11px;font-weight:600">${r.f!=null?deltaHTML(r.f,r.f0):''}</div></td></tr>`).join('')}
+    </tbody></table></div></div>`;
+  // attention / shining
+  const list=[];
+  for(const role of ['teacher','staff']){const cur=people(role,y),pr=people(role,p);for(const[n,rows]of cur){if(rows.length<5)continue;const a=aggR(rows),b=pr.has(n)?aggR(pr.get(n)):null;list.push({n,role,v:a.overall,d:b?a.overall-b.overall:null,cnt:rows.length})}}
+  const low=list.filter(x=>x.v<3.6||(x.d!=null&&x.d<-0.3)).sort((a,b)=>a.v-b.v).slice(0,10);
+  const up=list.filter(x=>x.d!=null&&x.d>0.15).sort((a,b)=>b.d-a.d).slice(0,10);
+  const li=(x)=>`<div class="item click" data-person="${esc(x.n)}" data-role="${x.role}" style="cursor:pointer"><div class="avatar ${x.role}" style="width:32px;height:32px;border-radius:9px;font-size:12px">${esc(initials(x.n))}</div><div style="flex:1"><b>${esc(x.n)}</b> <span class="dim">· ${x.role} · ${x.cnt} ratings</span></div><b>${fmt(x.v)}</b>${deltaHTML(x.v,x.d==null?null:x.v-x.d)}</div>`;
+  h+=`<div class="att" style="margin-top:14px"><div class="card"><h3>Needs a conversation</h3><div class="sub">Average below 3.6, or down 0.3 or more since ${p}. Minimum 5 ratings.</div><div class="list">${low.map(li).join('')||'<div class="empty">Nobody here. 👍</div>'}</div></div>
+    <div class="card"><h3>Most improved</h3><div class="sub">Biggest rise since ${p}. Minimum 5 ratings.</div><div class="list">${up.map(li).join('')||'<div class="empty">Will fill in as responses come in.</div>'}</div></div></div>`;
+  return h;
+}
+
+// ---------------- people table ----------------
+function peopleRows(role){
+  const y=D.year,p=D.prev, cur=people(role,y), pr=people(role,p);
+  const names=new Set([...cur.keys()]); if(!subs(y).length)for(const k of pr.keys())names.add(k);
+  const rows=[];
+  for(const n of names){
+    const r=cur.get(n)||[],r0=pr.get(n)||[]; const a=aggR(r),b=aggR(r0);
+    const centres=[...new Set(r.concat(r.length?[]:r0).map(x=>x.centre))];
+    const subjects=[...new Set(r.concat(r.length?[]:r0).flatMap(x=>(x.subjects||'').split(', ')).filter(Boolean))];
+    rows.push({n,centres,subjects,cnt:a.n,q:a.q,overall:a.overall,prev:b.overall,cnt0:b.n,delta:a.overall!=null&&b.overall!=null?a.overall-b.overall:null,comments:r.filter(x=>x.comment).length});
+  }
+  const q=F.q.trim().toLowerCase();
+  return rows.filter(r=>!q||r.n.toLowerCase().includes(q)||r.subjects.join(' ').toLowerCase().includes(q));
+}
+function peopleTable(role){
+  const rows=peopleRows(role); const k=SORT.k,d=SORT.d;
+  const val=(r)=>k==='n'?r.n:k.startsWith('q')?r.q[+k.slice(1)]:r[k];
+  rows.sort((a,b)=>{const x=val(a),y=val(b);if(x==null)return 1;if(y==null)return -1;return(typeof x==='string'?x.localeCompare(y):x-y)*d});
+  const all=aggR(rats(D.year,role)); const mid=all.overall||4.1;
+  const showingPrev=!subs(D.year).length;
+  const th=(key,l,num=true)=>`<th class="s ${num?'num':''}" data-sort="${key}">${l}${SORT.k===key?(SORT.d>0?' ↑':' ↓'):''}</th>`;
+  return`<div class="card"><h3>${role==='teacher'?'Teachers':'Staff'} <span class="dim" style="font-weight:500">· ${rows.length}</span></h3>
+    <div class="sub">${showingPrev?`No ${D.year} responses yet, so ${D.prev} scores are shown under "${D.prev}". `:''}Tap a name for the full breakdown and comments. Colour shows distance from the ${role} average (${fmt(mid)}): red is below, navy is above.</div>
+    <div class="tablewrap"><table><thead><tr>${th('n','Name',false)}<th>Centres</th>${th('cnt','Ratings')}${LABELS[role].map((l,i)=>th('q'+i,l)).join('')}${th('overall','Overall')}${th('prev',String(D.prev))}${th('delta','Change')}</tr></thead><tbody>
+    ${rows.map(r=>`<tr class="click" data-person="${esc(r.n)}" data-role="${role}"><td><div class="name">${esc(r.n)}</div><div class="dim" style="font-size:12px">${esc(r.subjects.slice(0,3).join(', '))}</div></td><td class="dim" style="font-size:12.5px">${esc(r.centres.join(', '))}</td><td class="num">${r.cnt||'–'}</td>
+      ${r.q.map(v=>`<td class="sc" style="${cellStyle(v,mid)}">${fmt(v)}</td>`).join('')}<td class="sc" style="${cellStyle(r.overall,mid)}">${fmt(r.overall)}</td><td class="num dim">${fmt(r.prev)}<div style="font-size:11px">${r.cnt0?r.cnt0+' ratings':''}</div></td><td class="num">${r.overall!=null?deltaHTML(r.overall,r.prev):''}</td></tr>`).join('')}
+    </tbody></table></div></div>`;
+}
+
+// ---------------- person drawer ----------------
+function openPerson(name,role){
+  const y=D.year,p=D.prev;
+  const R=rats(y,role).filter(r=>r.p===name), P=rats(p,role).filter(r=>r.p===name);
+  const a=aggR(R),b=aggR(P), inst=aggR(rats(y,role)), inst0=aggR(rats(p,role));
+  const max=5;
+  const qb=LABELS[role].map((l,i)=>`<div class="qbar"><div class="lb">${l}</div><div class="bars"><div style="width:${(a.q[i]||0)/max*100}%" data-tip="${y}: ${fmt(a.q[i])}"></div><div class="p" style="width:${(b.q[i]||0)/max*100}%" data-tip="${p}: ${fmt(b.q[i])}"></div></div><div class="v">${fmt(a.q[i])}</div><div>${a.q[i]!=null?deltaHTML(a.q[i],b.q[i]):''}</div></div>`).join('');
+  const dist=[0,0,0,0,0];for(const r of R)for(let i=1;i<=5;i++){const v=r['r'+i];if(v)dist[v-1]++}
+  const dt=dist.reduce((x,c)=>x+c,0)||1;
+  const DC=['#c4182b','#e8838f','#c9ced8','#7d93bd','#203864'];
+  const grp=(key)=>{const m=new Map();for(const r of R){const k=key(r);if(!m.has(k))m.set(k,[]);m.get(k).push(r)}const m0=new Map();for(const r of P){const k=key(r);if(!m0.has(k))m0.set(k,[]);m0.get(k).push(r)}
+    const keys=[...new Set([...m.keys(),...m0.keys()])];
+    return`<table><thead><tr><th></th><th class="num">${y} ratings</th>${LABELS[role].map(l=>`<th class="num">${l}</th>`).join('')}<th class="num">Overall</th><th class="num">${p}</th></tr></thead><tbody>${keys.map(k=>{const x=aggR(m.get(k)||[]),z=aggR(m0.get(k)||[]);return`<tr><td class="name">${esc(k)}</td><td class="num">${x.n||'–'}</td>${x.q.map(v=>`<td class="sc" style="${cellStyle(v,inst.overall||4.1)}">${fmt(v)}</td>`).join('')}<td class="sc" style="${cellStyle(x.overall,inst.overall||4.1)}">${fmt(x.overall)}</td><td class="num dim">${fmt(z.overall)}</td></tr>`}).join('')}</tbody></table>`};
+  const com=R.filter(r=>r.comment).sort((x,z)=>x.hidden-z.hidden);
+  const com0=P.filter(r=>r.comment&&r.comment.trim().length>3);
+  const sum=D.sum[name+'|'+role];
+  $('#drawer').innerHTML=`<div class="hd"><div class="avatar ${role}">${esc(initials(name))}</div><div><div style="font-weight:800;font-size:18px">${esc(name)}</div><div class="dim">${role==='teacher'?'Teacher':'Staff'} · ${a.n} ratings in ${y} · ${b.n} in ${p}${F.centre||F.batch?` · filtered: ${esc([F.centre,F.batch].filter(Boolean).join(' / '))}`:''}</div></div><button class="x" id="dx">×</button></div>
+  <div class="bd">
+    <div class="grid kpis"><div class="card kpi"><div class="lab">Overall ${y}</div><div class="val">${fmt(a.overall)}</div><div class="cmp">${deltaHTML(a.overall,b.overall)} vs ${fmt(b.overall)} in ${p}</div></div>
+      <div class="card kpi"><div class="lab">${role==='teacher'?'All teachers':'All staff'} average</div><div class="val">${fmt(inst.overall)}</div><div class="cmp">${a.overall!=null&&inst.overall!=null?(a.overall>=inst.overall?'<span class="delta up">Above average</span>':'<span class="delta down">Below average</span>'):''}</div></div>
+      <div class="card kpi"><div class="lab">Comments</div><div class="val">${com.length}</div><div class="cmp">${com.filter(c=>c.hidden).length} hidden</div></div></div>
+    <div class="card"><h3>Score by question</h3><div class="legend"><span><i class="sw" style="background:var(--navy)"></i>${y}</span><span><i class="sw" style="background:var(--prev)"></i>${p}</span></div>${qb}</div>
+    <div class="card"><h3>How the ratings spread</h3><div class="sub">Share of every 1–5 tap across all five questions (${y})</div>
+      <div class="dist">${dist.map((c,i)=>c?`<i style="width:${c/dt*100}%;background:${DC[i]}" data-tip="${i+1}★: ${c} (${Math.round(c/dt*100)}%)"></i>`:'').join('')}</div>
+      <div class="legend" style="margin-top:8px">${dist.map((c,i)=>`<span><i class="sw" style="background:${DC[i]}"></i>${i+1} · ${Math.round(c/dt*100)}%</span>`).join('')}</div></div>
+    <div class="card"><h3>By centre</h3><div class="tablewrap">${grp(r=>r.centre)}</div></div>
+    <div class="card"><h3>By batch</h3><div class="tablewrap">${grp(r=>r.centre+' · '+r.batch)}</div></div>
+    <div class="card"><h3>AI summary for ${esc(name)}</h3><div class="sub">This is what they see in their portal, written from this year's comments.</div>
+      ${sum?`<div class="summary">${esc(sum.text)}</div><div class="dim" style="font-size:12px;margin-top:6px">Generated ${esc(sum.updated)}</div>`:'<div class="dim">Not generated yet.</div>'}
+      <button class="btn sm" style="margin-top:10px" id="gen" data-person="${esc(name)}" data-role="${role}">${sum?'Regenerate':'Generate summary'}</button></div>
+    <div class="card comments"><h3>Comments ${y}</h3><div class="sub">Hidden comments are not shown to ${esc(name)}.</div>
+      ${com.map(c=>`<div class="c ${c.hidden?'hid':''}"><div class="t">${esc(c.comment)}<div class="m">${esc(c.centre)} · ${esc(c.batch)}${c.hidden===2?' · <span class="tag amber">waiting for AI check</span>':c.hidden?' · <span class="tag red">hidden</span>':''}</div></div><button class="btn ghost sm" data-hide="${c.id}" data-h="${c.hidden?0:1}">${c.hidden?'Show':'Hide'}</button></div>`).join('')||'<div class="dim">No comments yet.</div>'}</div>
+    ${com0.length?`<div class="card comments"><h3>Comments ${p}</h3>${com0.map(c=>`<div class="c"><div class="t">${esc(c.comment)}<div class="m">${esc(c.centre)} · ${esc(c.batch)}</div></div></div>`).join('')}</div>`:''}
+  </div>`;
+  $('#scrim').classList.add('on');$('#drawer').classList.add('on');$('#drawer').scrollTop=0;
+  $('#dx').onclick=closeDrawer;
+  $('#gen').onclick=async e=>{const b=e.target;b.disabled=true;b.textContent='Writing…';try{const r=await api('summarize',{person:name,role});if(!r.ok){toast(r.reason);b.disabled=false;b.textContent='Generate summary';return}D.sum[name+'|'+role]={text:r.text,updated:'just now'};openPerson(name,role)}catch(err){toast(err.message);b.disabled=false}};
+  $('#drawer').querySelectorAll('[data-hide]').forEach(b=>b.onclick=()=>hideComment('rating',+b.dataset.hide,+b.dataset.h,()=>openPerson(name,role)));
+}
+function closeDrawer(){$('#scrim').classList.remove('on');$('#drawer').classList.remove('on')}
+$('#scrim').onclick=closeDrawer;document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
+async function hideComment(kind,id,h,after){try{await api('hide',{kind,id,hidden:h});const arr=kind==='sub'?D.S:D.R;const x=arr.find(r=>r.id===id);if(x)x.hidden=h;after()}catch(e){toast(e.message)}}
+
+// ---------------- comments ----------------
+let CK='all';
+function commentsView(){
+  const y=D.year, q=F.q.trim().toLowerCase();
+  let items=[];
+  if(CK==='all'||CK==='overall')items.push(...subs(y).filter(s=>s.comment).map(s=>({kind:'sub',id:s.id,who:'Overall experience',role:'overall',text:s.comment,centre:s.centre,batch:s.batch,hidden:s.hidden,ts:s.ts})));
+  if(CK==='all'||CK==='teacher'||CK==='staff')items.push(...rats(y).filter(r=>r.comment&&(CK==='all'||r.role===CK)).map(r=>({kind:'rating',id:r.id,who:r.p,role:r.role,text:r.comment,centre:r.centre,batch:r.batch,hidden:r.hidden,ts:''})));
+  if(q)items=items.filter(i=>i.text.toLowerCase().includes(q)||i.who.toLowerCase().includes(q));
+  items=items.filter(i=>i.text.trim().length>2);
+  const pending=D.S.filter(s=>s.hidden===2).length+D.R.filter(r=>r.hidden===2).length;
+  return`<div class="card comments"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><h3 style="margin:0">Comments ${y} <span class="dim" style="font-weight:500">· ${items.length}</span></h3>
+    ${['all','overall','teacher','staff'].map(k=>`<button class="btn sm ${CK===k?'':'ghost'}" data-ck="${k}">${{all:'All',overall:'Overall',teacher:'Teachers',staff:'Staff'}[k]}</button>`).join('')}
+    ${pending?`<span class="tag amber">${pending} waiting for AI check</span><button class="btn sm" id="recheck">Check now</button>`:''}</div>
+    <div class="sub">Abusive comments were already stopped at submit. Hide anything else you don't want the person to see.</div>
+    ${items.slice(0,600).map(c=>`<div class="c ${c.hidden?'hid':''}"><div class="t">${esc(c.text)}<div class="m"><b>${esc(c.who)}</b> · ${esc(c.centre)} · ${esc(c.batch)} ${c.hidden===2?'<span class="tag amber">waiting for AI check</span>':c.hidden?'<span class="tag red">hidden</span>':''}</div></div><button class="btn ghost sm" data-hidek="${c.kind}" data-id="${c.id}" data-h="${c.hidden?0:1}">${c.hidden?'Show':'Hide'}</button></div>`).join('')||'<div class="empty">No comments yet.</div>'}</div>`;
+}
+
+// ---------------- setup ----------------
+function setupView(){
+  const s=D.settings;
+  const counts={b:D.batches.length,p:D.people.length,t:D.assignments.filter(a=>a.role==='teacher').length,st:D.assignments.filter(a=>a.role==='staff').length};
+  return`<div class="grid" style="max-width:900px"><div class="card setup"><h3>Collection</h3>
+    <div class="row"><div class="txt"><b>Feedback form is open</b><div class="dim">Students and parents can submit. Turn off when the week ends.</div></div><button class="switch ${s.form_open==='1'?'on':''}" data-set="form_open"></button></div>
+    <div class="row"><div class="txt"><b>Show results to teachers & staff</b><div class="dim">When on, each person can log in with their PIN and see their own scores and comments. Generate the AI summaries first.</div></div><button class="switch ${s.results_released==='1'?'on':''}" data-set="results_released"></button></div>
+    <div class="row"><div class="txt"><b>Feedback year</b><div class="dim">New responses are saved under this year and compared with the year before.</div></div><input id="yr" type="number" value="${esc(s.year)}" style="width:100px;border:1px solid var(--line);border-radius:8px;padding:6px"><button class="btn sm ghost" id="saveyr">Save</button></div></div>
+  <div class="card setup"><h3>Roster</h3><div class="sub">Live now: ${counts.b} batches · ${counts.p} people · ${counts.t} teacher assignments · ${counts.st} staff assignments</div>
+    <div class="row"><div class="txt"><b>Upload roster Excel</b><div class="dim">The MYT_Pulse_Roster file with sheets Batches, People, Teachers, Staff. Uploading replaces the current roster. Responses are never touched, and PINs stay the same for existing names.</div></div><input type="file" id="xf" accept=".xlsx"></div>
+    <div id="xprev"></div></div>
+  <div class="card setup"><h3>Teacher & staff access</h3>
+    <div class="row"><div class="txt"><b>PIN list for SMS</b><div class="dim">CSV with name, phone, PIN and a ready-to-send message containing their personal link.</div></div><button class="btn sm" id="pins">Download PIN list</button></div>
+    <div class="row"><div class="txt"><b>AI summaries</b><div class="dim">Writes a short "what students value / what to work on" note for everyone with 3 or more comments this year.</div></div><button class="btn sm" id="genall">Generate all</button><span id="genprog" class="dim"></span></div></div>
+  <div class="card setup"><h3>Export</h3>
+    <div class="row"><div class="txt"><b>All ${D.year} ratings (CSV)</b><div class="dim">One row per person rated, same columns as last year's "Teacher Combined Data" and "Staff Combined Data".</div></div><button class="btn sm ghost" id="exp">Download CSV</button></div></div></div>`;
+}
+function csv(rows){return rows.map(r=>r.map(v=>{v=v==null?'':String(v);return/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')).join('\n')}
+function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+text],{type:'text/csv'}));a.download=name;a.click()}
+function readRoster(file){
+  return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{try{
+    const wb=XLSX.read(fr.result,{type:'array'});
+    const sheet=n=>{const k=wb.SheetNames.find(x=>x.toLowerCase().includes(n));if(!k)throw new Error(`Sheet "${n}" not found`);return XLSX.utils.sheet_to_json(wb.Sheets[k],{defval:''})};
+    const col=(row,...keys)=>{for(const k of Object.keys(row)){const l=k.toLowerCase();if(keys.some(x=>l.includes(x)))return String(row[k]).trim()}return''};
+    const batches=sheet('batch').map(r=>({centre:col(r,'centre','center'),batch:col(r,'batch'),students:parseInt(col(r,'students'))||null,active:!/^n/i.test(col(r,'yes/no','active ('))})).filter(r=>r.centre&&r.batch);
+    const people=sheet('people').map(r=>({name:col(r,'name'),type:col(r,'type'),phone:col(r,'phone'),pin:col(r,'pin'),aliases:col(r,'2025').split(',').map(x=>x.trim()).filter(Boolean)}));
+    // the "2025 names" column also contains "name" – read it explicitly
+    sheet('people').forEach((r,i)=>{const k=Object.keys(r).find(k=>/^name$/i.test(k.trim()));if(k)people[i].name=String(r[k]).trim()});
+    const teachers=sheet('teacher').map(r=>({centre:col(r,'centre','center'),batch:col(r,'batch'),subject:col(r,'subject'),person:col(r,'teacher')})).filter(r=>r.centre&&r.batch&&r.person);
+    const staff=sheet('staff').map(r=>({centre:col(r,'centre','center'),batch:col(r,'batch')||'All',person:col(r,'staff')})).filter(r=>r.centre&&r.person);
+    res({batches,people:people.filter(p=>p.name),teachers,staff});
+  }catch(e){rej(e)}};fr.readAsArrayBuffer(file)});
+}
+function bindView(){
+  const v=$('#view');
+  v.querySelectorAll('[data-sort]').forEach(t=>t.onclick=()=>{const k=t.dataset.sort;SORT={k,d:SORT.k===k?-SORT.d:(k==='n'?1:-1)};draw()});
+  v.querySelectorAll('[data-person]').forEach(t=>t.onclick=()=>openPerson(t.dataset.person,t.dataset.role));
+  v.querySelectorAll('[data-ck]').forEach(b=>b.onclick=()=>{CK=b.dataset.ck;draw()});
+  v.querySelectorAll('[data-hidek]').forEach(b=>b.onclick=()=>hideComment(b.dataset.hidek==='sub'?'sub':'rating',+b.dataset.id,+b.dataset.h,draw));
+  const rc=$('#recheck');if(rc)rc.onclick=async()=>{rc.disabled=true;try{const r=await api('recheck',{});toast(`Checked ${r.checked}, hid ${r.hidden}. ${r.remaining} left.`);boot()}catch(e){toast(e.message)}};
+  v.querySelectorAll('[data-set]').forEach(b=>b.onclick=async()=>{const key=b.dataset.set,val=D.settings[key]==='1'?'0':'1';try{await api('settings',{key,value:val});D.settings[key]=val;shell()}catch(e){toast(e.message)}});
+  const sy=$('#saveyr');if(sy)sy.onclick=async()=>{try{await api('settings',{key:'year',value:$('#yr').value});boot()}catch(e){toast(e.message)}};
+  const xf=$('#xf');if(xf)xf.onchange=async()=>{
+    const box=$('#xprev');box.innerHTML='<div class="dim">Reading…</div>';
+    try{const R=await readRoster(xf.files[0]);
+      box.innerHTML=`<div class="row"><div class="txt">Found <b>${R.batches.length}</b> batches, <b>${R.people.length}</b> people, <b>${R.teachers.length}</b> teacher rows, <b>${R.staff.length}</b> staff rows.</div><button class="btn sm red" id="xgo">Replace roster</button></div><div class="problems" id="xprob"></div>`;
+      $('#xgo').onclick=async()=>{$('#xgo').disabled=true;try{const r=await api('roster',R);toast('Roster updated');boot()}catch(e){$('#xgo').disabled=false;$('#xprob').innerHTML=esc(e.message)+(e.data&&e.data.problems?'<br>'+e.data.problems.map(esc).join('<br>'):'')}};
+    }catch(e){box.innerHTML=`<div class="problems">${esc(e.message)}</div>`}};
+  const pb=$('#pins');if(pb)pb.onclick=async()=>{const r=await api('pins');const link=location.origin+'/me';download('MYT_Pulse_PINs.csv',csv([['Name','Type','Phone','PIN','Link','SMS message'],...r.people.map(p=>[p.name,p.type,p.phone,p.pin,link+'#'+p.pin,`Dear ${p.name}, your ${D.year} feedback from students & parents is ready. Open ${link}#${p.pin} (PIN ${p.pin}). Please keep this private. - Mayank Tutorials`])]))};
+  const ga=$('#genall');if(ga)ga.onclick=async()=>{ga.disabled=true;const todo=[];for(const role of['teacher','staff'])for(const[n,rows]of people(role,D.year))if(rows.filter(r=>r.comment&&r.comment.trim().length>3).length>=3)todo.push([n,role]);
+    let i=0,ok=0;for(const[n,role]of todo){i++;$('#genprog').textContent=`${i}/${todo.length}: ${n}`;try{const r=await api('summarize',{person:n,role});if(r.ok){ok++;D.sum[n+'|'+role]={text:r.text,updated:'just now'}}}catch(e){toast(n+': '+e.message)}}
+    $('#genprog').textContent=`Done: ${ok} summaries written.`;ga.disabled=false};
+  const ex=$('#exp');if(ex)ex.onclick=()=>{const y=D.year;const rows=[['Timestamp','Center','Batch','Role','Name','Subjects','Q1','Q2','Q3','Q4','Q5','Comment','Hidden']];const sm=new Map(D.S.map(s=>[s.id,s]));for(const r of D.R.filter(r=>r.year===y))rows.push([sm.get(r.sid)?.ts,r.centre,r.batch,r.role,r.p,r.subjects,r.r1,r.r2,r.r3,r.r4,r.r5,r.comment,r.hidden?'yes':'']);
+    rows.push([]);rows.push(['Overall responses']);rows.push(['Timestamp','Center','Batch','Recommend','Improved','Service','Comment']);for(const s of D.S.filter(s=>s.year===y))rows.push([s.ts,s.centre,s.batch,s.q1,s.q2,s.q3,s.comment]);
+    download(`MYT_Pulse_${y}_responses.csv`,csv(rows))};
+}
+// tooltip for any [data-tip]
+document.addEventListener('mousemove',e=>{const t=e.target.closest&&e.target.closest('[data-tip]'),tip=$('#tip');if(!t){tip.style.display='none';return}tip.textContent=t.dataset.tip;tip.style.display='block';tip.style.left=Math.min(e.clientX+12,innerWidth-tip.offsetWidth-8)+'px';tip.style.top=(e.clientY+14)+'px'});
+
+async function boot(){
+  if(!TOKEN)return loginView();
+  $('#root').innerHTML='<div class="empty" style="padding:80px">Loading dashboard…</div>';
+  try{D=prep(await api('data'));shell()}catch(e){if(TOKEN)$('#root').innerHTML=`<div class="empty">${esc(e.message)}</div>`}
+}
+boot();
+</script>
+</body>
+</html>
