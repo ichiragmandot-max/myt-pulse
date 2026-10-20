@@ -367,6 +367,7 @@ function setupView(){
     <div class="row"><div class="txt"><b>Feedback form is open</b><div class="dim">Students and parents can submit. Turn off when the week ends.</div></div><button class="switch ${s.form_open==='1'?'on':''}" data-set="form_open"></button></div>
     <div class="row"><div class="txt"><b>Show results to teachers & staff</b><div class="dim">When on, each person can log in with their PIN and see their own scores and comments. Generate the AI summaries first.</div></div><button class="switch ${s.results_released==='1'?'on':''}" data-set="results_released"></button></div>
     <div class="row"><div class="txt"><b>Feedback year</b><div class="dim">New responses are saved under this year and compared with the year before.</div></div><input id="yr" type="number" value="${esc(s.year)}" style="width:100px;border:1px solid var(--line);border-radius:8px;padding:6px"><button class="btn sm ghost" id="saveyr">Save</button></div></div>
+  ${codesCard()}
   <div class="card setup"><h3>Roster</h3><div class="sub">Live now: ${counts.b} batches · ${counts.p} people · ${counts.t} teacher assignments · ${counts.st} staff assignments</div>
     <div class="row"><div class="txt"><b>Upload roster Excel</b><div class="dim">The MYT_Pulse_Roster file with sheets Batches, People, Teachers, Staff. Uploading replaces the current roster. Responses are never touched, and PINs stay the same for existing names.</div></div><input type="file" id="xf" accept=".xlsx"></div>
     <div id="xprev"></div></div>
@@ -376,6 +377,18 @@ function setupView(){
   <div class="card setup"><h3>Export</h3>
     <div class="row"><div class="txt"><b>All ${D.year} ratings (CSV)</b><div class="dim">One row per person rated, same columns as last year's "Teacher Combined Data" and "Staff Combined Data".</div></div><button class="btn sm ghost" id="exp">Download CSV</button></div></div></div>`;
 }
+function linkFor(centre){const c=(D.codes||{})[centre];return location.origin+(c?'/?c='+encodeURIComponent(c):'/')}
+function codesCard(){
+  const codes=D.codes||{}, on=Object.values(codes).some(Boolean);
+  const centres=[...new Set(D.batches.filter(b=>b.active).map(b=>b.centre))];
+  if(!on)return`<div class="card setup"><h3>🔑 Centre access codes</h3><div class="sub">Right now anyone with the link can open the form. Turn on codes so only your students and parents can submit. Each centre gets one shared code (e.g. CN4821), so it can't identify anyone.</div>
+    <div class="row"><div class="txt"><b>Codes are off</b></div><button class="btn sm" data-codes="generate">Turn on codes for all centres</button></div></div>`;
+  return`<div class="card setup"><h3>🔑 Centre access codes</h3><div class="sub">Students enter their centre's code, or open the centre link, which has the code built in. If a code leaks outside, tap <b>New code</b>: the old code and its links stop working immediately.</div>
+    <div class="tablewrap"><table><thead><tr><th>Centre</th><th>Code</th><th></th></tr></thead><tbody>${centres.map(c=>`<tr><td class="name">${esc(c)}</td><td>${codes[c]?`<b style="font-size:16px;letter-spacing:2px">${esc(codes[c])}</b>`:'<span class="tag red">no code: centre is locked</span>'}</td>
+      <td style="text-align:right;white-space:nowrap"><button class="btn ghost sm" data-codemsg="${esc(c)}" ${codes[c]?'':'disabled'}>📋 WhatsApp message</button> <button class="btn ghost sm" data-codeset="${esc(c)}">Change</button> <button class="btn ghost sm" data-coderegen="${esc(c)}">New code</button></td></tr>`).join('')}</tbody></table></div>
+    <div class="row"><div class="txt dim">Turning codes off makes the form open to anyone with the link again.</div><button class="btn ghost sm" data-codes="off">Turn codes off</button></div></div>`;
+}
+function launchMsg(c){return`Dear students & parents of Mayank Tutorials, ${c} 🙏\n\nOur Annual Feedback ${D.year} is open till Friday. Tell us honestly how your teachers and staff are doing. It is 100% anonymous and takes about 5 minutes. You will only see your own batch's teachers.\n\n👉 ${linkFor(c)}\n🔑 Centre code: ${(D.codes||{})[c]}\n\nPlease do not share this link outside our ${c} groups.\n– Team Mayank Tutorials`}
 function csv(rows){return rows.map(r=>r.map(v=>{v=v==null?'':String(v);return/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')).join('\n')}
 function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+text],{type:'text/csv'}));a.download=name;a.click()}
 function readRoster(file){
@@ -398,12 +411,17 @@ function bindView(){
   v.querySelectorAll('[data-person]').forEach(t=>t.onclick=()=>openPerson(t.dataset.person,t.dataset.role));
   v.querySelectorAll('[data-remind]').forEach(b=>b.onclick=async()=>{const[c,bt,n,st]=b.dataset.remind.split('|');
     const left=st?Math.max(0,st-n):null;
-    const msg=`Dear ${bt} students & parents (${c}) 🙏\n\nOur annual feedback is open till Friday. It's 100% anonymous and takes 5 minutes. You'll only see your own teachers.\n\n${st?`So far ${n} of ${st} from your batch have shared feedback. ${left?`Let's get the remaining ${left}!`:'Amazing, everyone is in!'}`:`${n} from your batch have shared so far.`}\n\n👉 ${location.origin}\n\nThank you!\n– Team Mayank Tutorials`;
+    const msg=`Dear ${bt} students & parents (${c}) 🙏\n\nOur annual feedback is open till Friday. It's 100% anonymous and takes 5 minutes. You'll only see your own teachers.\n\n${st?`So far ${n} of ${st} from your batch have shared feedback. ${left?`Let's get the remaining ${left}!`:'Amazing, everyone is in!'}`:`${n} from your batch have shared so far.`}\n\n👉 ${linkFor(c)}${(D.codes||{})[c]?`\n🔑 Centre code: ${D.codes[c]}`:''}\n\nThank you!\n– Team Mayank Tutorials`;
     try{await navigator.clipboard.writeText(msg);toast('Reminder copied. Paste it in the batch WhatsApp group.')}catch{prompt('Copy this message:',msg)}});
   v.querySelectorAll('[data-ck]').forEach(b=>b.onclick=()=>{CK=b.dataset.ck;draw()});
   v.querySelectorAll('[data-hidek]').forEach(b=>b.onclick=()=>hideComment(b.dataset.hidek==='sub'?'sub':'rating',+b.dataset.id,+b.dataset.h,draw));
   const rc=$('#recheck');if(rc)rc.onclick=async()=>{rc.disabled=true;try{const r=await api('recheck',{});toast(`Checked ${r.checked}, hid ${r.hidden}. ${r.remaining} left.`);boot()}catch(e){toast(e.message)}};
   v.querySelectorAll('[data-set]').forEach(b=>b.onclick=async()=>{const key=b.dataset.set,val=D.settings[key]==='1'?'0':'1';try{await api('settings',{key,value:val});D.settings[key]=val;shell()}catch(e){toast(e.message)}});
+  const codeCall=async body=>{try{const r=await api('codes',body);D.codes=r.codes;draw()}catch(e){toast(e.message)}};
+  v.querySelectorAll('[data-codes]').forEach(b=>b.onclick=()=>{if(b.dataset.codes==='off'&&!confirm('Turn codes off? Anyone with the link will be able to submit.'))return;codeCall({action:b.dataset.codes})});
+  v.querySelectorAll('[data-coderegen]').forEach(b=>b.onclick=()=>{if(confirm(`Make a new code for ${b.dataset.coderegen}? The old code and links will stop working.`))codeCall({action:'regen',centre:b.dataset.coderegen})});
+  v.querySelectorAll('[data-codeset]').forEach(b=>b.onclick=()=>{const x=prompt(`New code for ${b.dataset.codeset} (letters/numbers, 4+ characters):`,(D.codes||{})[b.dataset.codeset]||'');if(x)codeCall({action:'set',centre:b.dataset.codeset,code:x})});
+  v.querySelectorAll('[data-codemsg]').forEach(b=>b.onclick=async()=>{const m=launchMsg(b.dataset.codemsg);try{await navigator.clipboard.writeText(m);toast('Message copied. Paste it in the '+b.dataset.codemsg+' WhatsApp groups.')}catch{prompt('Copy this message:',m)}});
   const sy=$('#saveyr');if(sy)sy.onclick=async()=>{try{await api('settings',{key:'year',value:$('#yr').value});boot()}catch(e){toast(e.message)}};
   const xf=$('#xf');if(xf)xf.onchange=async()=>{
     const box=$('#xprev');box.innerHTML='<div class="dim">Reading…</div>';

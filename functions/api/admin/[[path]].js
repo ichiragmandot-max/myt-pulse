@@ -1,4 +1,4 @@
-import { json, bad, setting, currentYear, requireAdmin, signToken, safeEqual, rlKey, hit, moderate, claude, makePin } from '../../../lib/util.js';
+import { json, bad, setting, currentYear, requireAdmin, signToken, safeEqual, rlKey, hit, moderate, claude, makePin, getCodes, makeCode, normCode } from '../../../lib/util.js';
 
 export async function onRequest(ctx) {
   const { request, env, params } = ctx;
@@ -15,6 +15,7 @@ export async function onRequest(ctx) {
     case 'pins': return pins(env);
     case 'recheck': return recheck(env);
     case 'summarize': return summarize(env, body);
+    case 'codes': return codes(env, body);
     default: return bad('Not found', 404);
   }
 }
@@ -46,7 +47,7 @@ async function data(env) {
     subCols: ['id', 'year', 'ts', 'centre', 'batch', 'q1', 'q2', 'q3', 'comment', 'hidden'], subs,
     ratCols: ['id', 'sid', 'year', 'centre', 'batch', 'role', 'person', 'subjects', 'r1', 'r2', 'r3', 'r4', 'r5', 'comment', 'hidden'], rats,
     aliases: Object.fromEntries(aliases.map((a) => [a.raw, a.canon])), batches, people, assignments: asg,
-    settings: Object.fromEntries(sets.map((s) => [s.key, s.value])), summaries: sums,
+    settings: Object.fromEntries(sets.map((s) => [s.key, s.value])), codes: await getCodes(env), summaries: sums,
   });
 }
 
@@ -147,4 +148,22 @@ async function summarize(env, b) {
   const text = await claude(env, SUM_SYS, user, 500);
   await env.DB.prepare('INSERT OR REPLACE INTO summaries(person,role,year,text,updated) VALUES(?,?,?,?,datetime(\'now\'))').bind(b.person, b.role, year, text).run();
   return json({ ok: true, text });
+}
+
+// Centre access codes. action: 'generate' (all centres), 'regen' (one centre), 'set' (custom), 'off' (remove all)
+async function codes(env, b) {
+  let c = await getCodes(env);
+  const { results } = await env.DB.prepare('SELECT DISTINCT centre FROM batches WHERE active=1').all();
+  const centres = results.map((r) => r.centre);
+  if (b.action === 'generate') { c = {}; for (const x of centres) c[x] = makeCode(x); }
+  else if (b.action === 'regen' && b.centre) c[b.centre] = makeCode(b.centre);
+  else if (b.action === 'set' && b.centre) {
+    const v = normCode(b.code);
+    if (v.length < 4) return bad('Use at least 4 letters or numbers.');
+    if (Object.entries(c).some(([k, x]) => k !== b.centre && normCode(x) === v)) return bad('Another centre already uses that code.');
+    c[b.centre] = v;
+  } else if (b.action === 'off') c = {};
+  else return bad('Unknown action');
+  await env.DB.prepare('INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)').bind('codes', JSON.stringify(c)).run();
+  return json({ ok: true, codes: c });
 }

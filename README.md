@@ -66,6 +66,8 @@ Wait for it to turn **Active** (usually minutes).
 2. `/admin` → **Setup → Upload roster Excel → Replace roster**. Re-upload any time; responses are never touched and PINs stay the same.
 3. Do a test run on your own phone, then hide that test response from the Comments tab, or just ignore it.
 
+**Centre access codes (recommended)**: `/admin` → Setup → **Turn on codes for all centres**. Each centre gets one shared code (e.g. `CN6301`). Use **📋 WhatsApp message** to copy a ready-made message with the centre's link (code built in) and the code, and post it only in that centre's groups. Without a valid code nobody can see the roster or submit. If a code leaks, tap **New code**: the old code and links stop working at once.
+
 **Launch (Friday)**: share `https://pulse.mayanktutorials.com` in batch WhatsApp groups and the parent groups. Use **Overview → Who to remind** each evening to see which batches are behind.
 
 **After the week**

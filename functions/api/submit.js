@@ -1,4 +1,4 @@
-import { json, bad, setting, currentYear, moderate, rlKey, hit } from '../../lib/util.js';
+import { json, bad, setting, currentYear, moderate, rlKey, hit, checkCode, codeLocked } from '../../lib/util.js';
 
 const score = (v) => (v === null || v === undefined || v === '' ? null : Math.max(1, Math.min(5, Math.round(Number(v)))) || null);
 const clean = (t) => (t ? String(t).trim().slice(0, 2000) : null) || null;
@@ -8,6 +8,9 @@ export async function onRequestPost({ request, env }) {
   let body; try { body = await request.json(); } catch { return bad('Bad request'); }
   if (body.website) return json({ ok: true }); // honeypot: bots fill hidden field
   const { centre, batch } = body;
+  if (await codeLocked(request, env)) return bad('Too many wrong codes. Please try again in an hour.', 429);
+  const access = await checkCode(request, env, body.code);
+  if (access.gated && access.centre !== centre) return bad('Your centre code is missing or has changed. Please ask your centre for the current code.', 403);
   const year = await currentYear(env);
   const b = await env.DB.prepare('SELECT 1 FROM batches WHERE centre=? AND batch=? AND active=1').bind(centre, batch).first();
   if (!b) return bad('Please choose your centre and batch again.');

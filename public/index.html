@@ -5,7 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Annual Feedback · Mayank Tutorials</title>
 <link rel="icon" href="/favicon.png">
-<meta name="description" content="Anonymous annual feedback for Mayank Tutorials teachers and staff.">
+<meta name="description" content="Share anonymous feedback about your teachers and staff. Takes 5 minutes. For Mayank Tutorials students and parents only.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Mayank Tutorials">
+<meta property="og:title" content="Annual Feedback 2026 · Mayank Tutorials">
+<meta property="og:description" content="Your voice makes your teachers &amp; staff better. 100% anonymous · 5 minutes · students &amp; parents only.">
+<meta property="og:image" content="/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Lora:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
@@ -22,7 +30,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .bar{height:4px;background:#d6ecf8;margin:0 -16px;border-top:2px solid var(--sky)}
 .bar i{display:block;height:100%;width:0;background:var(--red);transition:width .35s ease}
 .hero{position:relative;overflow:hidden;background:linear-gradient(135deg,#203864 0%,#2a4a82 100%);color:#fff;border-radius:22px;padding:24px 20px 22px;margin-bottom:16px}
-.hero::after{content:'';position:absolute;right:-30px;bottom:-30px;width:170px;height:170px;background:url(/emblem.jpg) center/contain no-repeat;opacity:.09;border-radius:50%;filter:grayscale(1) brightness(3)}
+.hero::after{content:'';position:absolute;right:-30px;bottom:-30px;width:170px;height:170px;background:url(/emblem.jpg) center/contain no-repeat;opacity:.14;filter:invert(1) grayscale(1);mix-blend-mode:screen}
 .hero .kicker{display:inline-block;font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;background:var(--red);padding:5px 10px;border-radius:6px}
 .hero h1{font-family:Lora,Georgia,serif;font-size:29px;margin:14px 0 8px;letter-spacing:0}
 .hero h1 em{font-style:italic;color:#ffd5da}
@@ -39,9 +47,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .race .r .tr i{display:block;height:100%;background:#9fb0cf;border-radius:0 6px 6px 0;transition:width .8s ease}
 .race .r.me .nm{color:var(--red)}.race .r.me .tr i{background:var(--red)}
 .race .r .v{text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
-.share{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
-.share a,.share button{display:flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;padding:12px;font-weight:700;text-decoration:none;border:0;font-size:14.5px}
-.share .wa{background:#25D366;color:#fff}.share .st{background:var(--navy);color:#fff}
+.codebox{border:2px solid var(--navy)}
+.codebox input{width:100%;font:inherit;font-size:24px;font-weight:800;letter-spacing:6px;text-transform:uppercase;text-align:center;border:1.5px solid var(--line);border-radius:12px;padding:12px;margin:10px 0 4px}
+.codebox input:focus{outline:none;border-color:var(--navy)}
 main{max-width:560px;margin:0 auto;padding:20px 16px 120px}
 h1{font-size:26px;line-height:1.2;margin:8px 0 10px;letter-spacing:-.3px}
 h2{font-size:21px;margin:4px 0 6px;letter-spacing:-.2px}
@@ -57,6 +65,7 @@ p.lead{color:var(--ink-2);margin:0 0 18px}
 .q{padding:14px 0;border-top:1px solid var(--line)}
 .q:first-of-type{border-top:0;padding-top:4px}
 .q .t{font-weight:600;margin-bottom:10px}
+.q .t .kw{color:var(--red);font-weight:800;background:linear-gradient(transparent 62%,#fde2e5 62%);padding:0 1px}
 .scale{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .scale button{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:8px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;transition:transform .12s,border-color .12s,background .12s}
 .scale button .e{font-size:24px;line-height:1.1;filter:grayscale(.85);opacity:.7;transition:filter .12s,opacity .12s}
@@ -107,11 +116,12 @@ textarea.err{border-color:var(--red);background:#fff8f8}
 <div class="toast" id="toast"></div>
 <script>
 const SCALE=[['😞','Poor'],['🙁','Fair'],['😐','Good'],['🙂','Very good'],['🤩','Excellent']];
-const OVERALL=['How likely are you to recommend Mayank Tutorials to your friends or family?','How much have your marks or understanding improved since joining Mayank Tutorials?','How satisfied are you with our communication, punctuality, and support?'];
-const TQ=(n,s)=>[`How clearly does ${n} explain ${s}?`,`How effectively does ${n} solve your doubts in ${s}?`,`How approachable and supportive is ${n}?`,`How knowledgeable is ${n} about the subject?`,`How punctual and professional is ${n}'s class?`];
-const SQ=n=>[`How helpful was ${n}?`,`Did ${n} go beyond expectations to assist you?`,`How clear and timely was ${n}'s communication?`,`How timely was ${n} in handling test papers, timetables, etc.?`,`How effectively did ${n} resolve your issues?`];
+const OVERALL=['How likely are you to *recommend* Mayank Tutorials to your friends or family?','How much have your *marks or understanding improved* since joining Mayank Tutorials?','How satisfied are you with our *communication, punctuality, and support*?'];
+const TQ=(n,s)=>[`How *clearly* does ${n} explain ${s}?`,`How effectively does ${n} *solve your doubts* in ${s}?`,`How *approachable and supportive* is ${n}?`,`How *knowledgeable* is ${n} about the subject?`,`How *punctual and professional* is ${n}'s class?`];
+const SQ=n=>[`How *helpful* was ${n}?`,`Did ${n} *go beyond expectations* to assist you?`,`How *clear and timely* was ${n}'s communication?`,`How *timely* was ${n} in handling *test papers, timetables*, etc.?`,`How effectively did ${n} *resolve your issues*?`];
 const KEY='pulse-draft-v1';
 const $=s=>document.querySelector(s), app=$('#app');
+const kw=q=>esc(q).replace(/\*(.+?)\*/g,'<span class="kw">$1</span>');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const initials=n=>n.replace(/\b(sir|mam|maam|madam|miss|mr|mrs|ms)\b/ig,'').trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase()||'•';
 let cfg=null, roster=null, S=load()||fresh();
@@ -139,7 +149,7 @@ function cards(){
   return out;
 }
 function steps(){
-  const st=['welcome','centre','batch'];
+  const st=['welcome',...(cfg&&cfg.centres&&cfg.centres.length===1?[]:['centre']),'batch'];
   if(!roster)return st;
   if(needsPick().length)st.push('pick');
   st.push('overall',...cards().map(c=>'card:'+c.key),'review');
@@ -169,22 +179,26 @@ function render(){
     h=`<div class="fade"><div class="hero"><span class="kicker">Annual Feedback ${new Date().getFullYear()}</span>
       <h1>Your voice makes your <em>teachers & staff</em> better.</h1>
       <p>About 5 minutes. Students and parents are both welcome. Rate only the teachers and staff you know, and skip any question you like.</p>
-      ${PULSE&&PULSE.total?`<div class="live"><i></i>${PULSE.total.toLocaleString('en-IN')} students &amp; parents have shared feedback so far</div>`:''}</div>
+      ${CODE_OK&&PULSE&&PULSE.total?`<div class="live"><i></i>${PULSE.total.toLocaleString('en-IN')} students &amp; parents have shared feedback so far</div>`:''}</div>
       <div class="card">
         <div class="trust"><span>🕶️</span><div><b>Completely anonymous.</b> We never ask your name, phone number or roll number.</div></div>
         <div class="trust"><span>🎯</span><div><b>Short and personal.</b> You'll only see the teachers and staff of your own batch.</div></div>
         <div class="trust"><span>💬</span><div><b>Be honest, be kind.</b> Criticism is welcome, and it is what helps teachers improve. Abusive words are not accepted.</div></div>
       </div>
       ${done?`<div class="card"><b>You've already sent feedback from this phone.</b><div class="hint">If you're a parent with another child, or a sibling is using this phone, you can fill it again.</div></div>`:''}
+      ${cfg.open&&cfg.gated&&!CODE_OK?`<div class="card codebox"><b>🔑 Enter your centre code</b><div class="hint" style="margin-top:2px">Your centre has shared it in your batch WhatsApp group. Everyone at your centre uses the same code, so it can't identify you.</div><input id="code" maxlength="10" autocomplete="off" autocapitalize="characters" placeholder="e.g. CN1234" value="${esc(CODE||'')}">${CODE_ERR?`<div class="err-msg">${esc(CODE_ERR)}</div>`:''}</div>`:''}
       ${!cfg.open?`<div class="card"><b>Feedback is closed right now.</b></div>`:''}${FOOT}</div>`;
-    app.innerHTML=h; setFoot(S.centre?'Continue':'Start',{back:false,disabled:!cfg.open}); return;
+    app.innerHTML=h; setFoot(S.centre&&CODE_OK?'Continue':'Start',{back:false,disabled:!cfg.open});
+    const ci=$('#code'); if(ci){ci.addEventListener('keydown',e=>{if(e.key==='Enter')go()});} return;
   }
   if(step==='centre'){
     h=`<div class="fade"><h2>Which centre?</h2><p class="lead">Choose the branch where you attend classes.</p><div class="choices">${cfg.centres.map(c=>`<button class="choice ${S.centre===c.name?'on':''}" data-centre="${esc(c.name)}">${esc(c.name)}</button>`).join('')}</div></div>`;
     app.innerHTML=h; setFoot('Next',{disabled:!S.centre}); return;
   }
   if(step==='batch'){
+    if(!S.centre&&cfg.centres.length===1)S.centre=cfg.centres[0].name;
     const c=cfg.centres.find(c=>c.name===S.centre);
+    if(!c){S.step='welcome';return render()}
     h=`<div class="fade"><span class="pill">${esc(S.centre)}</span><h2>Which batch?</h2><p class="lead">Choose your standard and board or stream.</p><div class="choices">${c.batches.map(b=>`<button class="choice ${S.batch===b?'on':''}" data-batch="${esc(b)}">${esc(b)}</button>`).join('')}</div></div>`;
     app.innerHTML=h; setFoot('Next',{disabled:!S.batch}); return;
   }
@@ -197,7 +211,7 @@ function render(){
   if(step==='overall'){
     const o=S.overall;
     h=`<div class="fade"><span class="pill">${esc(S.centre)} · ${esc(S.batch)}</span><h2>About Mayank Tutorials</h2><p class="lead">First, a few questions about your overall experience.</p>
-      <div class="card">${OVERALL.map((q,i)=>`<div class="q"><div class="t">${esc(q)}</div>${scaleHTML('o'+i,o.r[i])}</div>`).join('')}
+      <div class="card">${OVERALL.map((q,i)=>`<div class="q"><div class="t">${kw(q)}</div>${scaleHTML('o'+i,o.r[i])}</div>`).join('')}
       <div class="q"><div class="t">Any brief comments about your overall experience?</div><textarea data-c="overall" class="${S.errors.overall?'err':''}" placeholder="Optional. What do you like? What should we improve?">${esc(o.comment)}</textarea>${S.errors.overall?`<div class="err-msg">${esc(S.errors.overall)}</div>`:''}</div></div></div>`;
     app.innerHTML=h; setFoot('Next'); focusErr(); return;
   }
@@ -208,7 +222,7 @@ function render(){
     const subj=c.subjects?c.subjects.join(' & '):'';
     const qs=c.role==='teacher'?TQ(c.person,subj):SQ(c.person);
     h=`<div class="fade"><div class="card"><div class="who"><div class="avatar ${c.role}">${esc(initials(c.person))}</div><div><h2 style="margin:0">${esc(c.person)}</h2><div class="meta">${c.role==='teacher'?'Teacher · '+esc(subj):'Office & support staff'}</div></div></div>
-      ${qs.map((q,i)=>`<div class="q"><div class="t">${esc(q)}</div>${scaleHTML('r'+i,r.r[i])}</div>`).join('')}
+      ${qs.map((q,i)=>`<div class="q"><div class="t">${kw(q)}</div>${scaleHTML('r'+i,r.r[i])}</div>`).join('')}
       <div class="q"><div class="t">Any comments about ${esc(c.person)}?</div><textarea data-c="${esc(key)}" class="${S.errors[key]?'err':''}" placeholder="${c.role==='teacher'?'Optional. One thing to keep doing, one thing to improve…':'Optional. How did they help? What could be better?'}">${esc(r.comment)}</textarea>${S.errors[key]?`<div class="err-msg">${esc(S.errors[key])}</div>`:'<div class="hint">English, Hindi or Marathi is fine.</div>'}</div></div>
       <button class="skip" data-skip="${esc(key)}">I don't know ${esc(c.person)}, skip</button></div>`;
     app.innerHTML=h; setFoot('Next'); focusErr(); return;
@@ -229,11 +243,10 @@ function render(){
   if(step==='done'){
     const DI=S.doneInfo||{};
     h=`<div class="fade"><div class="hero center"><div style="font-size:54px;line-height:1">🙏</div><h1>Thank you!</h1><p style="margin:0 auto">Your feedback has gone in anonymously.${DI.people?` You just helped <b style="color:#fff">${DI.people} teachers &amp; staff</b> get better.`:''}</p></div>
-      <div class="card"><h2 style="font-size:18px">🏁 Centre race</h2><p class="hint" style="margin:0 0 12px">Which centre's students &amp; parents are speaking up the most? ${DI.centre?`Help <b style="color:var(--red)">${esc(DI.centre)}</b> climb: share the link with your batch.`:''}</p>
-        <div class="race" id="race"><div class="hint">Loading…</div></div>
-        <div class="share"><a class="wa" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(shareText(DI.centre))}">💬 Share on WhatsApp</a><button class="st" id="status">📸 Status image</button></div></div>
+      <div class="card"><h2 style="font-size:18px">🏁 Centre race</h2><p class="hint" style="margin:0 0 12px">Which centre's students &amp; parents are speaking up the most? ${DI.centre?`Help <b style="color:var(--red)">${esc(DI.centre)}</b> climb: remind your batchmates to fill it in.`:''}</p>
+        <div class="race" id="race"><div class="hint">Loading…</div></div></div>
       ${FOOT}</div>`;
-    app.innerHTML=h; setFoot('',{hide:true}); drawRace(DI.centre); $('#status').onclick=()=>statusImage(DI);
+    app.innerHTML=h; setFoot('',{hide:true}); drawRace(DI.centre);
   }
 }
 
@@ -266,6 +279,14 @@ app.addEventListener('input',e=>{
 $('#back').onclick=()=>{const st=steps();const i=st.indexOf(S.step);if(i>0){S.step=st[i-1];save();render()}};
 $('#next').onclick=go;
 async function go(){
+  if(S.step==='welcome'&&cfg.gated&&!CODE_OK){
+    const v=(($('#code')||{}).value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(!v){CODE_ERR='Please enter your centre code.';return render()}
+    CODE=v; $('#next').disabled=true;
+    try{await loadCfg()}catch(e){CODE_ERR=e.message}
+    if(!CODE_OK)return render();
+    try{PULSE=await api(withCode('/api/pulse'))}catch{}
+  }
   const st=steps(); let i=st.indexOf(S.step);
   if(S.step==='batch'){await loadRoster();if(!roster)return}
   if(S.step==='review')return submit();
@@ -276,7 +297,7 @@ async function go(){
 }
 async function loadRoster(){
   $('#next').disabled=true;
-  try{roster=await api('/api/config?centre='+encodeURIComponent(S.centre)+'&batch='+encodeURIComponent(S.batch))}catch(e){toast(e.message);roster=null}
+  try{roster=await api(withCode('/api/config?centre='+encodeURIComponent(S.centre)+'&batch='+encodeURIComponent(S.batch)))}catch(e){toast(e.message);roster=null}
   $('#next').disabled=false;
 }
 async function submit(){
@@ -284,7 +305,7 @@ async function submit(){
   const cs=cards();
   const ratings=cs.filter(c=>S.ratings[c.key]&&(answeredCount(S.ratings[c.key])||S.ratings[c.key].comment.trim())).map(c=>({role:c.role,person:c.person,r:S.ratings[c.key].r,comment:S.ratings[c.key].comment}));
   try{
-    const d=await api('/api/submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({centre:S.centre,batch:S.batch,overall:{q1:S.overall.r[0],q2:S.overall.r[1],q3:S.overall.r[2],comment:S.overall.comment},ratings,website:($('#website')||{}).value||''})});
+    const d=await api('/api/submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code:CODE,centre:S.centre,batch:S.batch,overall:{q1:S.overall.r[0],q2:S.overall.r[1],q3:S.overall.r[2],comment:S.overall.comment},ratings,website:($('#website')||{}).value||''})});
     if(d.status===422){
       S.errors={};
       for(const b of d.blocked){const k=b.index<0?'overall':ratings[b.index]&&(ratings[b.index].role+'|'+ratings[b.index].person);if(k)S.errors[k]=b.reason}
@@ -298,10 +319,19 @@ async function submit(){
   }catch(e){toast(e.message);btn.disabled=false;btn.textContent='Submit feedback'}
 }
 const FOOT=`<div class="brandfoot"><b>MAYANK TUTORIALS</b><br>A Brand You Can Trust · Since 2013</div>`;
-let PULSE=null;
-const shareText=c=>`I just shared my annual feedback for Mayank Tutorials${c?' ('+c+')':''}. It's anonymous and takes 5 minutes. Your turn 👉 ${location.origin}`;
+let PULSE=null, CODE=null, CODE_OK=false, CODE_ERR='';
+try{const u=new URL(location.href);CODE=(u.searchParams.get('c')||new URLSearchParams(location.hash.slice(1)).get('c')||localStorage.getItem('pulse-code')||'').toUpperCase()||null;if(u.searchParams.get('c')||location.hash.includes('c='))history.replaceState(null,'',location.pathname)}catch{}
+const withCode=p=>p+(p.includes('?')?'&':'?')+'code='+encodeURIComponent(CODE||'');
+async function loadCfg(){
+  cfg=await api(withCode('/api/config'));
+  CODE_OK=!cfg.gated||cfg.valid;
+  if(cfg.gated&&CODE&&!cfg.valid){CODE_ERR='That code didn\'t work. Check the message from your centre.';}
+  if(CODE_OK){CODE_ERR='';try{if(CODE)localStorage.setItem('pulse-code',CODE)}catch{}
+    if(cfg.centres.length===1&&S.centre!==cfg.centres[0].name){S.centre=cfg.centres[0].name;S.batch=null;roster=null}
+    if(S.centre&&!cfg.centres.some(c=>c.name===S.centre)){S.centre=null;S.batch=null;roster=null}}
+}
 async function drawRace(mine){
-  try{PULSE=await api('/api/pulse?t='+Date.now())}catch{return}
+  try{PULSE=await api(withCode('/api/pulse?t='+Date.now()))}catch{return}
   const rows=PULSE.centres.map(c=>({...c,v:c.students?c.n/c.students:null}));
   const byPct=rows.every(r=>r.v!==null&&r.students>0);
   rows.sort((a,b)=>byPct?b.v-a.v:b.n-a.n);
@@ -310,30 +340,9 @@ async function drawRace(mine){
   el.innerHTML=rows.map(r=>`<div class="r ${r.name===mine?'me':''}"><span class="nm">${r.name===mine?'★ ':''}${esc(r.name)}</span><span class="tr"><i style="width:0" data-w="${Math.max(2,(byPct?r.v:r.n/max)*100)}"></i></span><span class="v">${byPct?Math.round(r.v*100)+'%':r.n}</span></div>`).join('')+`<div class="hint">${byPct?'Share of students who have responded.':'Responses so far.'} Updates live.</div>`;
   requestAnimationFrame(()=>el.querySelectorAll('i[data-w]').forEach(i=>i.style.width=Math.min(100,+i.dataset.w)+'%'));
 }
-function loadImg(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src})}
-async function statusImage(DI){
-  const W=1080,H=1920,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
-  const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,'#203864');g.addColorStop(1,'#14264a');x.fillStyle=g;x.fillRect(0,0,W,H);
-  x.fillStyle='#fff';x.beginPath();x.roundRect(70,140,W-140,190,28);x.fill();
-  try{const lg=await loadImg('/logo.jpg');const h=150,w=lg.width*h/lg.height;x.drawImage(lg,(W-Math.min(w,W-180))/2,160,Math.min(w,W-180),h*Math.min(w,W-180)/w)}catch{}
-  x.textAlign='center';x.fillStyle='#ffd5da';x.font='600 46px Lora, Georgia, serif';x.fillText('Annual Feedback '+new Date().getFullYear(),W/2,520);
-  x.fillStyle='#fff';x.font='800 108px "Plus Jakarta Sans", system-ui, sans-serif';
-  ['My voice','is in. 🙌'].forEach((t,i)=>x.fillText(t,W/2,720+i*130));
-  x.font='500 46px "Plus Jakarta Sans", system-ui, sans-serif';x.fillStyle='#d7e0f1';
-  [DI.people?`I rated ${DI.people} teachers & staff`:'I shared honest feedback','to help them teach even better.'].forEach((t,i)=>x.fillText(t,W/2,1020+i*64));
-  if(DI.centre){x.fillStyle='#DD152B';x.beginPath();x.roundRect(W/2-300,1150,600,96,48);x.fill();x.fillStyle='#fff';x.font='800 44px "Plus Jakarta Sans", system-ui, sans-serif';x.fillText('Team '+DI.centre,W/2,1214)}
-  x.fillStyle='#fff';x.font='700 54px "Plus Jakarta Sans", system-ui, sans-serif';x.fillText('Have you shared yours?',W/2,1480);
-  x.font='600 42px "Plus Jakarta Sans", system-ui, sans-serif';x.fillStyle='#8fd0f0';x.fillText(location.host,W/2,1560);
-  x.fillStyle='rgba(255,255,255,.55)';x.font='500 34px "Plus Jakarta Sans", system-ui, sans-serif';x.fillText('100% anonymous · takes 5 minutes',W/2,1640);
-  c.toBlob(async b=>{
-    const f=new File([b],'my-feedback.png',{type:'image/png'});
-    try{if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:shareText(DI.centre)});return}}catch(e){if(e.name==='AbortError')return}
-    const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='my-feedback.png';a.click();toast('Image saved. Post it on your WhatsApp status!');
-  },'image/png');
-}
 (async()=>{
-  try{cfg=await api('/api/config')}catch(e){app.innerHTML='<div class="loading">Could not load. Please check your internet and refresh.</div>';return}
-  try{PULSE=await api('/api/pulse')}catch{}
+  try{await loadCfg()}catch(e){app.innerHTML=`<div class="loading">${esc(e.message||'Could not load. Please check your internet and refresh.')}</div>`;return}
+  if(CODE_OK)try{PULSE=await api(withCode('/api/pulse'))}catch{}
   if(S.centre&&S.batch&&!['welcome','centre','batch','done'].includes(S.step)){await loadRoster();if(!roster)S.step='batch'}
   if(S.step==='done')S=fresh();
   render();
