@@ -1,4 +1,4 @@
-import { json, bad, setting, currentYear, rlKey, hit } from '../../lib/util.js';
+import { json, bad, setting, currentYear, rlKey, hit, ensureSchema } from '../../lib/util.js';
 
 const MIN_GROUP = 5; // smallest group shown separately, protects anonymity
 const QS = {
@@ -34,11 +34,12 @@ export async function onRequestPost({ request, env }) {
   const prev = year - 1;
   if (!released) return json({ name: p.name, released: false });
 
+  await ensureSchema(env);
   const { results: names } = await env.DB.prepare('SELECT raw FROM aliases WHERE canon=?').bind(p.name).all();
   const all = [...new Set([p.name, ...names.map((x) => x.raw)])];
   const ph = all.map(() => '?').join(',');
   const { results: rows } = await env.DB.prepare(
-    `SELECT year,role,centre,batch,r1,r2,r3,r4,r5,comment,hidden FROM ratings WHERE person IN (${ph}) AND year IN (?,?)`
+    `SELECT year,role,centre,batch,r1,r2,r3,r4,r5,comment,hidden FROM ratings WHERE person IN (${ph}) AND year IN (?,?) AND sid NOT IN (SELECT id FROM submissions WHERE excluded=1)`
   ).bind(...all, year, prev).all();
 
   const roles = [];
@@ -46,9 +47,17 @@ export async function onRequestPost({ request, env }) {
     const cur = rows.filter((r) => r.role === role && r.year === year);
     const old = rows.filter((r) => r.role === role && r.year === prev);
     if (!cur.length && !old.length) continue;
-    const inst = await env.DB.prepare(
-      'SELECT AVG(r1) a1,AVG(r2) a2,AVG(r3) a3,AVG(r4) a4,AVG(r5) a5 FROM ratings WHERE role=? AND year=?'
-    ).bind(role, year).first();
+    // Institute average is the same for everyone, so it's worked out at most once every 30 minutes
+    const ck = `inst:${year}:${role}`;
+    let inst = null;
+    const c = await env.DB.prepare('SELECT v,t FROM cache WHERE k=?').bind(ck).first();
+    if (c && Date.now() - c.t < 30 * 60e3) inst = JSON.parse(c.v);
+    else {
+      inst = await env.DB.prepare(
+        'SELECT AVG(r1) a1,AVG(r2) a2,AVG(r3) a3,AVG(r4) a4,AVG(r5) a5 FROM ratings WHERE role=? AND year=? AND sid NOT IN (SELECT id FROM submissions WHERE excluded=1)'
+      ).bind(role, year).first();
+      await env.DB.prepare('INSERT OR REPLACE INTO cache(k,v,t) VALUES(?,?,?)').bind(ck, JSON.stringify(inst), Date.now()).run();
+    }
     const summary = await env.DB.prepare('SELECT text FROM summaries WHERE person=? AND role=? AND year=?').bind(p.name, role, year).first();
     roles.push({
       role, labels: QS[role],

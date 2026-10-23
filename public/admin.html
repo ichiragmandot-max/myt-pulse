@@ -126,6 +126,14 @@ td.sc{text-align:center;font-weight:700;border-radius:6px;border:2px solid #fff;
 .logrow[open] summary{background:#f4f6fa}
 .logrow .ref{font-variant-numeric:tabular-nums;color:var(--navy);min-width:52px}
 .logbody{padding:10px 4px 14px}
+.logrow.excl summary{opacity:.6}
+.reasons{background:#fff6e5;border:1px solid #f3dfb2;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13.5px}
+.reasons a,.signals a{color:var(--navy);font-weight:700}
+.signals{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--ink-2);margin-bottom:10px}
+.signals a{text-decoration:none;background:var(--soft);padding:2px 8px;border-radius:8px}
+.tog{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer}
+.filters .tog input{min-width:0;width:16px;height:16px;padding:0;margin:0;accent-color:var(--red)}
+.integ{display:flex;align-items:center;gap:14px;justify-content:space-between;border-left:4px solid var(--red);margin-bottom:14px}
 .att{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:800px){.att{grid-template-columns:1fr}}
 </style>
 </head>
@@ -168,11 +176,56 @@ function prep(d){
   d.year0=d.year;
   d.bySid=new Map();for(const r of d.R){if(!d.bySid.has(r.sid))d.bySid.set(r.sid,[]);d.bySid.get(r.sid).push(r)}
   d.sum={};for(const s of d.summaries)d.sum[s.person+'|'+s.role]=s;
+  d.subById=new Map(d.S.map(s=>[s.id,s]));
+  computeSus(d);
   return d;
 }
+// ---- Fake-feedback detection: simple, explainable rules. Score >=5 = likely fake, >=2 = worth a look ----
+function computeSus(d){
+  const y=d.year0, S=d.S.filter(s=>s.year===y), sus=new Map();
+  const add=(id,w,txt,q)=>{let x=sus.get(id);if(!x)sus.set(id,x={score:0,reasons:[]});x.score+=w;x.reasons.push({txt,q,w})};
+  const group=(key)=>{const m=new Map();for(const s of S){const k=s[key];if(!k)continue;if(!m.has(k))m.set(k,[]);m.get(k).push(s)}return m};
+  const t=s=>new Date(String(s.ts).replace(' ','T')).getTime();
+  // 1. same phone, several responses
+  for(const[k,g]of group('dev'))if(g.length>=2)for(const s of g)add(s.id,g.length>=3?4:2,`Same phone sent ${g.length} responses${g.length===2?' (could be siblings)':''}`,'dev:'+k);
+  // 2. burst from one network: 5+ within 20 minutes
+  for(const[k,g]of group('net')){if(g.length<5)continue;for(const s of g){const n=g.filter(o=>Math.abs(t(o)-t(s))<=20*60e3).length;if(n>=5)add(s.id,2,`${n} responses from the same network within 20 min`,'net:'+k)}}
+  // per-batch teacher averages (for "far from classmates")
+  const bt=new Map();
+  for(const r of d.R){if(r.year!==y||r.role!=='teacher')continue;const v=mean([r.r1,r.r2,r.r3,r.r4,r.r5]);if(v==null)continue;const k=r.centre+'|'+r.batch+'|'+r.p;const x=bt.get(k)||{s:0,n:0};x.s+=v;x.n++;bt.set(k,x)}
+  const teachersIn=new Map();for(const a of d.assignments)if(a.role==='teacher'){const k=a.centre+'|'+a.batch;if(!teachersIn.has(k))teachersIn.set(k,new Set());teachersIn.get(k).add(a.person)}
+  const comments=new Map();const norm=c=>String(c).toLowerCase().replace(/[^a-z0-9\u0900-\u097f]/g,'');
+  for(const s of S){
+    const rs=d.bySid.get(s.id)||[];
+    const vals=[s.q1,s.q2,s.q3,...rs.flatMap(r=>[r.r1,r.r2,r.r3,r.r4,r.r5])].filter(v=>v!=null), n=vals.length;
+    // 3. too fast
+    if(s.secs!=null&&n>=10){const per=s.secs/n;if(per<1)add(s.id,3,`Filled in ${s.secs}s for ${n} answers (too fast to read)`);else if(per<2)add(s.id,1,`Quick: ${s.secs}s for ${n} answers`)}
+    // 4. every answer the same
+    if(n>=10&&vals.every(v=>v===vals[0]))add(s.id,vals[0]===5?1:2,`All ${n} answers are ${vals[0]}`);
+    // 5. rated only one teacher, extreme score
+    const tr=rs.filter(r=>r.role==='teacher'&&[r.r1,r.r2,r.r3,r.r4,r.r5].some(v=>v!=null));
+    const total=(teachersIn.get(s.centre+'|'+s.batch)||new Set()).size;
+    if(total>=3&&tr.length===1){const v=mean([tr[0].r1,tr[0].r2,tr[0].r3,tr[0].r4,tr[0].r5]);if(v>=4.8||v<=1.5)add(s.id,3,`Rated only ${tr[0].p} (${v.toFixed(1)}) and no other teacher`,tr[0].p)}
+    // 6. far from classmates
+    let out=0;
+    for(const r of tr){const v=mean([r.r1,r.r2,r.r3,r.r4,r.r5]);const x=bt.get(r.centre+'|'+r.batch+'|'+r.p);if(!x||x.n<6||out>=2)continue;const o=(x.s-v)/(x.n-1);if(Math.abs(v-o)>=2.5){out++;add(s.id,2,`${r.p}: gave ${v.toFixed(1)}, classmates average ${o.toFixed(1)}`,r.p)}}
+    for(const c of [s.comment,...rs.map(r=>r.comment)]){if(!c)continue;const k=s.centre+'|'+norm(c);if(k.length-s.centre.length<36)continue;if(!comments.has(k))comments.set(k,new Set());comments.get(k).add(s.id)}
+  }
+  // 7. copy-pasted comments
+  // (long, word-for-word identical comment at the same centre; counted once per response)
+  const dup=new Map();for(const ids of comments.values())if(ids.size>=2)for(const id of ids){if(!dup.has(id))dup.set(id,new Set());for(const o of ids)if(o!==id)dup.get(id).add(o)}
+  for(const[id,os]of dup)add(id,3,`Word-for-word same comment as ${[...os].slice(0,3).map(x=>'#'+x).join(', ')}${os.size>3?` and ${os.size-3} more`:''}`,'#'+[...os][0]);
+  for(const x of sus.values())x.level=x.score>=5?'likely':x.score>=2?'review':'';
+  d.sus=sus;
+}
+let HIDE_SUS=(()=>{try{return localStorage.getItem('pulse-hidesus')==='1'}catch{return false}})();
+const susOf=s=>D.sus.get(s.id)||{score:0,reasons:[],level:''};
+const keep=s=>!s.excluded&&!(HIDE_SUS&&s.year===D.year0&&susOf(s).level==='likely');
+const keepSid=sid=>{const s=D.subById.get(sid);return !s||keep(s)};
 const inF=x=>(!F.centre||x.centre===F.centre)&&(!F.batch||x.batch===F.batch);
-const subs=y=>D.S.filter(s=>s.year===y&&inF(s));
-const rats=(y,role)=>D.R.filter(r=>r.year===y&&(!role||r.role===role)&&inF(r));
+const subs=y=>D.S.filter(s=>s.year===y&&inF(s)&&keep(s));
+const allSubs=y=>D.S.filter(s=>s.year===y&&inF(s));
+const rats=(y,role)=>D.R.filter(r=>r.year===y&&(!role||r.role===role)&&inF(r)&&keepSid(r.sid));
 function mean(a){const v=a.filter(x=>x!=null);return v.length?v.reduce((p,c)=>p+c,0)/v.length:null}
 function aggR(rows){ // 5 dims + overall
   const q=[1,2,3,4,5].map(i=>mean(rows.map(r=>r['r'+i])));
@@ -211,6 +264,7 @@ function shell(){
       <select id="fb"><option value="">All batches</option>${batches.map(b=>`<option ${F.batch===b?'selected':''}>${esc(b)}</option>`).join('')}</select>
       ${['teacher','staff','comments','log'].includes(TAB)?`<input id="fq" placeholder="${TAB==='log'?'Search ref no., name or text…':'Search name or text…'}" value="${esc(F.q)}">`:''}
       <button class="btn ghost sm" id="refresh">↻ Refresh</button>
+      <label class="tog" title="Leave out responses flagged as likely fake from every score"><input type="checkbox" id="hidesus" ${HIDE_SUS?'checked':''}> Hide likely-fake from scores</label>
       <span class="note">Comparing this year with ${D.prev} using the same questions. Scores are out of 5.</span></div>
     <div id="view"></div></main>`;
   document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{TAB=b.dataset.tab;localStorage.setItem('pulse-tab',TAB);shell()});
@@ -218,6 +272,7 @@ function shell(){
   const fc=$('#fc');if(fc){fc.onchange=()=>{F.centre=fc.value;F.batch='';shell()};$('#fb').onchange=()=>{F.batch=$('#fb').value;shell()}}
   const fq=$('#fq');if(fq)fq.oninput=()=>{F.q=fq.value;draw(true)};
   $('#refresh')&&($('#refresh').onclick=boot);
+  const hs=$('#hidesus');if(hs)hs.onchange=()=>{HIDE_SUS=hs.checked;try{localStorage.setItem('pulse-hidesus',HIDE_SUS?'1':'0')}catch{};draw()};
   draw();
 }
 function draw(keepFocus){
@@ -237,7 +292,9 @@ function overview(){
   const tq=aggR(rats(y,'teacher')),tp=aggR(rats(p,'teacher')),sq=aggR(rats(y,'staff')),spp=aggR(rats(p,'staff'));
   const o=[0,1,2].map(i=>mean(sc.map(s=>s['q'+(i+1)]))), op=[0,1,2].map(i=>mean(sp.map(s=>s['q'+(i+1)])));
   const k=(lab,val,cmp)=>`<div class="card kpi"><div class="lab">${lab}</div><div class="val">${val}</div><div class="cmp">${cmp}</div></div>`;
-  let h=`<div class="grid kpis">
+  const susList=allSubs(y).map(s=>({s,x:susOf(s)})), nLikely=susList.filter(o=>o.x.level==='likely'&&!o.s.excluded).length, nReview=susList.filter(o=>o.x.level==='review'&&!o.s.excluded).length, nExcl=susList.filter(o=>o.s.excluded).length;
+  let h=(nLikely||nReview||nExcl)?`<div class="card integ"><div><b>⚠️ Fake-feedback check</b><div class="dim">${nLikely?`<b style="color:var(--red)">${nLikely} likely fake</b> · `:''}${nReview} worth a look · ${nExcl} excluded from scores${HIDE_SUS&&nLikely?' · likely-fake are currently hidden from scores':''}</div></div><button class="btn sm" id="gosus">Review →</button></div>`:'';
+  h+=`<div class="grid kpis">
     ${k('Responses',`${sc.length.toLocaleString('en-IN')}${students?` <small>/ ${students.toLocaleString('en-IN')}</small>`:''}`,`${students?`<b>${pct(sc.length/students)}</b> response rate · `:''}${sp.length.toLocaleString('en-IN')} in ${p}`)}
     ${OVERALL_L.map((l,i)=>k(l,`${fmt(o[i])}`,`${deltaHTML(o[i],op[i])} vs ${fmt(op[i])} in ${p}`)).join('')}
     ${k('Teachers (avg)',fmt(tq.overall),`${deltaHTML(tq.overall,tp.overall)} vs ${fmt(tp.overall)} · ${tq.n.toLocaleString('en-IN')} ratings`)}
@@ -248,7 +305,7 @@ function overview(){
   const dk=[...days.keys()].sort(), max=Math.max(1,...days.values());
   const dayChart=dk.length?`<div class="days">${dk.map(d=>`<div class="d" data-tip="${esc(new Date(d).toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'}))}: ${days.get(d)} responses"><b>${days.get(d)}</b><i style="height:${days.get(d)/max*100}%"></i></div>`).join('')}</div><div class="daylabels">${dk.map(d=>`<span>${new Date(d).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span>`).join('')}</div>`:`<div class="empty">No responses yet for ${y}. They will appear here live.</div>`;
   const brows=D.batches.filter(b=>b.active&&inF(b)).map(b=>{const n=sc.filter(s=>s.centre===b.centre&&s.batch===b.batch).length;return{...b,n,rate:b.students?n/b.students:null}}).sort((a,b)=>(a.rate??9)-(b.rate??9)||a.n-b.n);
-  const rateTable=`<div class="tablewrap" style="max-height:330px;overflow-y:auto"><table><thead><tr><th>Batch</th><th class="num">Responses</th><th>Response rate</th><th></th></tr></thead><tbody>${brows.map(b=>`<tr><td><span class="name">${esc(b.batch)}</span> <span class="dim">· ${esc(b.centre)}</span></td><td class="num">${b.n}${b.students?` / ${b.students}`:''}</td><td>${b.rate==null?'<span class="dim">add student count</span>':`<div class="rate ${b.rate<.4?'low':''}"><div class="track"><i style="width:${Math.min(100,b.rate*100)}%"></i></div><b>${pct(b.rate)}</b></div>`}</td><td><button class="btn ghost sm" data-remind="${esc(b.centre)}|${esc(b.batch)}|${b.n}|${b.students||''}" title="Copy a WhatsApp reminder for this batch">📋 Reminder</button></td></tr>`).join('')}</tbody></table></div>`;
+  const rateTable=`<div class="tablewrap" style="max-height:330px;overflow-y:auto"><table><thead><tr><th>Batch</th><th class="num">Responses</th><th>Response rate</th><th></th></tr></thead><tbody>${brows.map(b=>`<tr><td><span class="name">${esc(b.batch)}</span> <span class="dim">· ${esc(b.centre)}</span></td><td class="num">${b.n}${b.students?` / ${b.students}`:''}</td><td>${b.rate==null?'<span class="dim">add student count</span>':`<div class="rate ${b.rate<.4?'low':''}"><div class="track"><i style="width:${Math.min(100,b.rate*100)}%"></i></div><b>${pct(b.rate)}</b></div>${b.rate>1?'<span class="tag red" title="More responses than students: check for fake feedback">over 100%!</span>':''}`}</td><td><button class="btn ghost sm" data-remind="${esc(b.centre)}|${esc(b.batch)}|${b.n}|${b.students||''}" title="Copy a WhatsApp reminder for this batch">📋 Reminder</button></td></tr>`).join('')}</tbody></table></div>`;
   h+=`<div class="grid two" style="margin-top:14px"><div class="card"><h3>Responses per day</h3><div class="sub">${y} · live</div>${dayChart}</div>
      <div class="card"><h3>Who to remind</h3><div class="sub">Lowest response rate first. Red is below 40%.</div>${rateTable}</div></div>`;
   // centre table
@@ -312,6 +369,7 @@ function peopleTable(role){
 function openPerson(name,role){
   const y=D.year,p=D.prev;
   const R=rats(y,role).filter(r=>r.p===name), P=rats(p,role).filter(r=>r.p===name);
+  const susR=D.R.filter(r=>r.year===y&&r.role===role&&r.p===name&&inF(r)).filter(r=>{const s=D.subById.get(r.sid);return s&&(s.excluded||susOf(s).level)}).length;
   const a=aggR(R),b=aggR(P), inst=aggR(rats(y,role)), inst0=aggR(rats(p,role));
   const max=5;
   const qb=LABELS[role].map((l,i)=>`<div class="qbar"><div class="lb">${l}</div><div class="bars"><div style="width:${(a.q[i]||0)/max*100}%" data-tip="${y}: ${fmt(a.q[i])}"></div><div class="p" style="width:${(b.q[i]||0)/max*100}%" data-tip="${p}: ${fmt(b.q[i])}"></div></div><div class="v">${fmt(a.q[i])}</div><div>${a.q[i]!=null?deltaHTML(a.q[i],b.q[i]):''}</div></div>`).join('');
@@ -326,6 +384,7 @@ function openPerson(name,role){
   const sum=D.sum[name+'|'+role];
   $('#drawer').innerHTML=`<div class="hd"><div class="avatar ${role}">${esc(initials(name))}</div><div><div style="font-weight:800;font-size:18px">${esc(name)}</div><div class="dim">${role==='teacher'?'Teacher':'Staff'} · ${a.n} ratings in ${y} · ${b.n} in ${p}${F.centre||F.batch?` · filtered: ${esc([F.centre,F.batch].filter(Boolean).join(' / '))}`:''}</div></div><button class="x" id="dx">×</button></div>
   <div class="bd">
+    ${susR?`<div class="card integ" style="margin:0"><div><b>⚠️ ${susR} of ${esc(name)}'s ratings come from flagged or excluded responses</b><div class="dim">${HIDE_SUS?'Likely-fake ones are hidden from these scores.':'They are still counted unless excluded.'}</div></div><button class="btn sm" data-sq="${esc(name)}">Review</button></div>`:''}
     <div class="grid kpis"><div class="card kpi"><div class="lab">Overall ${y}</div><div class="val">${fmt(a.overall)}</div><div class="cmp">${deltaHTML(a.overall,b.overall)} vs ${fmt(b.overall)} in ${p}</div></div>
       <div class="card kpi"><div class="lab">${role==='teacher'?'All teachers':'All staff'} average</div><div class="val">${fmt(inst.overall)}</div><div class="cmp">${a.overall!=null&&inst.overall!=null?(a.overall>=inst.overall?'<span class="delta up">Above average</span>':'<span class="delta down">Below average</span>'):''}</div></div>
       <div class="card kpi"><div class="lab">Comments</div><div class="val">${com.length}</div><div class="cmp">${com.filter(c=>c.hidden===1||c.hidden===2).length} hidden · ${com.filter(c=>c.hidden===3).length} to check</div></div></div>
@@ -346,11 +405,12 @@ function openPerson(name,role){
   $('#dx').onclick=closeDrawer;
   $('#gen').onclick=async e=>{const b=e.target;b.disabled=true;b.textContent='Writing…';try{const r=await api('summarize',{person:name,role});if(!r.ok){toast(r.reason);b.disabled=false;b.textContent='Generate summary';return}D.sum[name+'|'+role]={text:r.text,updated:'just now'};openPerson(name,role)}catch(err){toast(err.message);b.disabled=false}};
   $('#drawer').querySelectorAll('[data-hide]').forEach(b=>b.onclick=()=>hideComment('rating',+b.dataset.hide,+b.dataset.h,()=>openPerson(name,role)));
+  $('#drawer').querySelectorAll('[data-sq]').forEach(b=>b.onclick=()=>{closeDrawer();TAB='log';LOGF='sus';F.q=b.dataset.sq;shell()});
 }
 function tagFor(h){return h===2?'<span class="tag amber">hidden · waiting for check</span>':h===3?'<span class="tag amber">⚠️ check · visible</span>':h===1?'<span class="tag red">hidden</span>':''}
 function closeDrawer(){$('#scrim').classList.remove('on');$('#drawer').classList.remove('on')}
 $('#scrim').onclick=closeDrawer;document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
-async function hideComment(kind,id,h,after){try{await api('hide',{kind,id,hidden:h});const arr=kind==='sub'?D.S:D.R;const x=arr.find(r=>r.id===id);if(x)x.hidden=h;after()}catch(e){toast(e.message)}}
+async function hideComment(kind,id,h,after){try{await api('hide',{kind,id,hidden:h});try{sessionStorage.removeItem('pulse-prev-'+(D.year0-1))}catch{};const arr=kind==='sub'?D.S:D.R;const x=arr.find(r=>r.id===id);if(x)x.hidden=h;after()}catch(e){toast(e.message)}}
 
 // ---------------- comments ----------------
 let CK='all';
@@ -371,21 +431,35 @@ function commentsView(){
 }
 
 // ---------------- raw responses log ----------------
-let LOG_N=100;
+let LOG_N=100, LOGF='all';
 function logView(){
   const y=D.year,q=F.q.trim().toLowerCase().replace(/^#/,'');
-  let list=subs(y).slice().sort((a,b)=>b.id-a.id);
-  if(q)list=list.filter(s=>String(s.id)===q||(s.comment||'').toLowerCase().includes(q)||(D.bySid.get(s.id)||[]).some(r=>r.p.toLowerCase().includes(q)||(r.comment||'').toLowerCase().includes(q)));
+  let list=allSubs(y).slice().sort((a,b)=>b.id-a.id);
+  const total=list.length, nSus=list.filter(s=>susOf(s).level&&!s.excluded).length, nEx=list.filter(s=>s.excluded).length;
+  if(LOGF==='sus')list=list.filter(s=>susOf(s).level&&!s.excluded).sort((a,b)=>susOf(b).score-susOf(a).score||b.id-a.id);
+  if(LOGF==='excl')list=list.filter(s=>s.excluded);
+  if(q.startsWith('dev:'))list=list.filter(s=>s.dev&&s.dev.toLowerCase()===q.slice(4));
+  else if(q.startsWith('net:'))list=list.filter(s=>s.net&&s.net.toLowerCase()===q.slice(4));
+  else if(q)list=list.filter(s=>String(s.id)===q||(s.comment||'').toLowerCase().includes(q)||(D.bySid.get(s.id)||[]).some(r=>r.p.toLowerCase().includes(q)||(r.comment||'').toLowerCase().includes(q)));
+  const devN=new Map(),netN=new Map();for(const s of allSubs(y)){if(s.dev)devN.set(s.dev,(devN.get(s.dev)||0)+1);if(s.net)netN.set(s.net,(netN.get(s.net)||0)+1)}
+  const dur=x=>x==null?'–':x<60?Math.round(x)+'s':Math.floor(x/60)+'m '+Math.round(x%60)+'s';
+  const lvl=s=>s.excluded?'<span class="tag" style="background:#eceef3;color:#5b6478">🚫 excluded</span>':susOf(s).level==='likely'?'<span class="tag red">⚠️ likely fake</span>':susOf(s).level==='review'?'<span class="tag amber">worth a look</span>':'';
+  const bulk=(q.startsWith('dev:')||q.startsWith('net:'))&&list.some(s=>!s.excluded);
   const st=tagFor;
   const sc=v=>v==null?'<span class="dim">–</span>':v;
-  return`<div class="card"><h3>Responses ${y} <span class="dim" style="font-weight:500">· ${list.length}</span></h3>
-    <div class="sub">Every submission exactly as it was saved, newest first. The "Ref" number is shown to the person on their thank-you screen, so you can find your own test entries. Tap a row to see every rating in it.</div>
-    ${list.slice(0,LOG_N).map(s=>{const rs=(D.bySid.get(s.id)||[]).slice().sort((a,b)=>a.role.localeCompare(b.role)||a.p.localeCompare(b.p));return`<details class="logrow"><summary><b class="ref">#${s.id}</b><span class="dim">${esc(s.ts)}</span><span><b>${esc(s.centre)}</b> · ${esc(s.batch)}</span><span>Overall ${sc(s.q1)} / ${sc(s.q2)} / ${sc(s.q3)}</span><span class="dim">${rs.length} rated${rs.filter(r=>r.comment).length+(s.comment?1:0)?` · ${rs.filter(r=>r.comment).length+(s.comment?1:0)} comments`:''}</span></summary>
-      <div class="logbody">${s.comment?`<div style="margin-bottom:8px"><b>Overall comment:</b> ${esc(s.comment)} ${st(s.hidden)}</div>`:''}
+  return`<div class="card"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px"><h3 style="margin:0">Responses ${y} <span class="dim" style="font-weight:500">· ${list.length}</span></h3>
+    ${[['all',`All (${total})`],['sus',`⚠️ Suspicious (${nSus})`],['excl',`🚫 Excluded (${nEx})`]].map(([k,l])=>`<button class="btn sm ${LOGF===k?'':'ghost'}" data-logf="${k}">${l}</button>`).join('')}
+    ${bulk?`<button class="btn sm red" data-exclall="${list.filter(s=>!s.excluded).map(s=>s.id).join(',')}">Exclude all ${list.filter(s=>!s.excluded).length} shown</button>`:''}</div>
+    <div class="sub">Every submission exactly as saved. The "Ref" number is shown on the thank-you screen. Tap a row for every rating, the reasons it was flagged, and its phone / network tags. Tap a tag to see everything from that phone or network. <b>Excluded</b> responses stay here but are left out of all scores, including the teacher portal.</div>
+    ${list.slice(0,LOG_N).map(s=>{const rs=(D.bySid.get(s.id)||[]).slice().sort((a,b)=>a.role.localeCompare(b.role)||a.p.localeCompare(b.p));const X=susOf(s);return`<details class="logrow ${s.excluded?'excl':''}"><summary><b class="ref">#${s.id}</b>${lvl(s)}<span class="dim">${esc(s.ts)}</span><span><b>${esc(s.centre)}</b> · ${esc(s.batch)}</span><span>Overall ${sc(s.q1)} / ${sc(s.q2)} / ${sc(s.q3)}</span><span class="dim">${rs.length} rated${(()=>{const n=rs.filter(r=>r.comment).length+(s.comment?1:0);return n?` · ${n} comment${n>1?'s':''}`:''})()}</span></summary>
+      <div class="logbody">
+      ${X.reasons.length?`<div class="reasons">${X.reasons.map(r=>`<div>• ${esc(r.txt)}${r.q?` <a href="#" data-sq="${esc(r.q)}">see all</a>`:''}</div>`).join('')}</div>`:''}
+      <div class="signals">${s.dev?`<a href="#" data-sq="dev:${esc(s.dev)}" title="Same code = same phone">📱 Phone ${esc(s.dev)}${devN.get(s.dev)>1?` <b>×${devN.get(s.dev)}</b>`:''}</a>`:'<span>📱 –</span>'}${s.net?`<a href="#" data-sq="net:${esc(s.net)}" title="Same code = same internet connection">🌐 Network ${esc(s.net)}${netN.get(s.net)>1?` <b>×${netN.get(s.net)}</b>`:''}</a>`:'<span>🌐 –</span>'}<span>${esc(s.ua||'device unknown')}</span><span>⏱ ${dur(s.secs)}</span></div>
+      ${s.comment?`<div style="margin-bottom:8px"><b>Overall comment:</b> ${esc(s.comment)} ${st(s.hidden)}</div>`:''}
       <div class="tablewrap"><table><thead><tr><th>Person</th><th>Role · subject</th><th class="num">Q1</th><th class="num">Q2</th><th class="num">Q3</th><th class="num">Q4</th><th class="num">Q5</th><th>Comment</th></tr></thead><tbody>
       ${rs.map(r=>`<tr><td class="name">${esc(r.p)}${r.p!==r.person?` <span class="dim">(${esc(r.person)})</span>`:''}</td><td class="dim">${r.role}${r.subjects?' · '+esc(r.subjects):''}</td>${[r.r1,r.r2,r.r3,r.r4,r.r5].map(v=>`<td class="num">${sc(v)}</td>`).join('')}<td>${esc(r.comment||'')} ${st(r.hidden)}</td></tr>`).join('')||'<tr><td colspan="8" class="dim">No teacher or staff ratings in this response.</td></tr>'}
       </tbody></table></div>
-      <div style="text-align:right;margin-top:8px"><button class="btn ghost sm" data-del="${s.id}" style="color:var(--red)">Delete response #${s.id}</button></div></div></details>`}).join('')||'<div class="empty">No responses yet.</div>'}
+      <div style="text-align:right;margin-top:8px;display:flex;gap:8px;justify-content:flex-end"><button class="btn ${s.excluded?'':'ghost'} sm" data-excl="${s.id}" data-x="${s.excluded?0:1}">${s.excluded?'Include in scores again':'🚫 Exclude from scores'}</button><button class="btn ghost sm" data-del="${s.id}" style="color:var(--red)">Delete response #${s.id}</button></div></div></details>`}).join('')||'<div class="empty">No responses yet.</div>'}
     ${list.length>LOG_N?`<div style="text-align:center;margin-top:12px"><button class="btn ghost sm" id="more">Show ${Math.min(100,list.length-LOG_N)} more</button></div>`:''}</div>`;
 }
 // ---------------- setup ----------------
@@ -405,6 +479,8 @@ function setupView(){
   <div class="card setup"><h3>Teacher & staff access</h3>
     <div class="row"><div class="txt"><b>PIN list for SMS</b><div class="dim">CSV with name, phone, PIN and a ready-to-send message containing their personal link.</div></div><button class="btn sm" id="pins">Download PIN list</button></div>
     <div class="row"><div class="txt"><b>AI summaries</b><div class="dim">Writes a short "what students value / what to work on" note for everyone with 3 or more comments this year.</div></div><button class="btn sm" id="genall">Generate all</button><span id="genprog" class="dim"></span></div></div>
+  <div class="card setup"><h3>Privacy</h3>
+    <div class="row"><div class="txt"><b>Erase phone & network tags</b><div class="dim">Each response stores a scrambled phone tag and network tag (no name, number or IP) only so you can spot fake feedback. Once you've finished reviewing, erase them. Scores, comments and the "excluded" choices you made stay.</div></div><button class="btn sm ghost" id="erase">Erase tags for ${D.year}</button></div></div>
   <div class="card setup"><h3>Export</h3>
     <div class="row"><div class="txt"><b>All ${D.year} ratings (CSV)</b><div class="dim">One row per person rated, same columns as last year's "Teacher Combined Data" and "Staff Combined Data".</div></div><button class="btn sm ghost" id="exp">Download CSV</button></div></div></div>`;
 }
@@ -461,6 +537,13 @@ function bindView(){
   v.querySelectorAll('[data-hidek]').forEach(b=>b.onclick=()=>hideComment(b.dataset.hidek==='sub'?'sub':'rating',+b.dataset.id,+b.dataset.h,draw));
   const rc=$('#recheck');if(rc)rc.onclick=async()=>{rc.disabled=true;try{const r=await api('recheck',{});toast(`${r.checked} comments checked: ${r.checked-r.hidden-r.flagged} now visible, ${r.flagged} tagged "check", ${r.hidden} hidden.`);boot()}catch(e){toast(e.message)}};
   v.querySelectorAll('[data-set]').forEach(b=>b.onclick=async()=>{const key=b.dataset.set,val=D.settings[key]==='1'?'0':'1';try{await api('settings',{key,value:val});D.settings[key]=val;shell()}catch(e){toast(e.message)}});
+  v.querySelectorAll('[data-logf]').forEach(b=>b.onclick=()=>{LOGF=b.dataset.logf;LOG_N=100;draw()});
+  v.querySelectorAll('[data-sq]').forEach(a=>a.onclick=e=>{e.preventDefault();const q=a.dataset.sq;LOGF='all';F.q=q;if(TAB!=='log'){TAB='log';shell()}else{const f=$('#fq');if(f)f.value=q;draw()}});
+  const setEx=async(ids,x)=>{try{await api('exclude',{ids,excluded:x});for(const id of ids){const s=D.subById.get(id);if(s)s.excluded=x}toast(`${ids.length} response${ids.length>1?'s':''} ${x?'excluded from scores':'included again'}`);draw()}catch(e){toast(e.message)}};
+  v.querySelectorAll('[data-excl]').forEach(b=>b.onclick=e=>{e.preventDefault();setEx([+b.dataset.excl],+b.dataset.x)});
+  v.querySelectorAll('[data-exclall]').forEach(b=>b.onclick=()=>{const ids=b.dataset.exclall.split(',').map(Number);if(confirm(`Exclude all ${ids.length} responses shown from every score?`))setEx(ids,1)});
+  const gs=$('#gosus');if(gs)gs.onclick=()=>{TAB='log';LOGF='sus';F.q='';shell()};
+  const er=$('#erase');if(er)er.onclick=async()=>{if(!confirm('Erase all phone and network tags for this year? Do this only after you have finished checking for fake feedback.'))return;try{await api('erase-signals',{});toast('Phone and network tags erased');boot()}catch(e){toast(e.message)}};
   v.querySelectorAll('[data-del]').forEach(b=>b.onclick=async e=>{e.preventDefault();const id=+b.dataset.del;if(!confirm(`Permanently delete response #${id} and all its ratings? This cannot be undone.`))return;
     try{await api('delete',{id});D.S=D.S.filter(s=>s.id!==id);D.R=D.R.filter(r=>r.sid!==id);D.bySid.delete(id);toast(`Response #${id} deleted`);draw()}catch(err){toast(err.message)}});
   const mo=$('#more');if(mo)mo.onclick=()=>{LOG_N+=100;draw()};
@@ -491,7 +574,17 @@ document.addEventListener('mousemove',e=>{const t=e.target.closest&&e.target.clo
 async function boot(){
   if(!TOKEN)return loginView();
   $('#root').innerHTML='<div class="empty" style="padding:80px">Loading dashboard…</div>';
-  try{D=prep(await api('data'));shell()}catch(e){if(TOKEN)$('#root').innerHTML=`<div class="empty">${esc(e.message)}</div>`}
+  try{
+    const meta=await api('data');
+    const msg=t=>{const el=$('#root .empty');if(el)el.textContent=t};
+    // Fetch rows in pages of 4,000 (keeps each request inside Cloudflare's free CPU limit)
+    const all=async(t,y)=>{let out=[],after=0;for(;;){const r=await api(`rows?t=${t}&year=${y}&after=${after}`);out=out.concat(r.rows);msg(`Loading ${y} ${t==='subs'?'responses':'ratings'}… ${out.length.toLocaleString('en-IN')}`);if(r.next==null)return out;after=r.next}};
+    // Last year's data doesn't change, so keep it for this browser session (saves Cloudflare reads)
+    const pk='pulse-prev-'+meta.prev;let prev=null;try{prev=JSON.parse(sessionStorage.getItem(pk)||'null')}catch{}
+    if(!prev){prev={subs:await all('subs',meta.prev),rats:await all('rats',meta.prev)};try{sessionStorage.setItem(pk,JSON.stringify(prev))}catch{}}
+    const cs=await all('subs',meta.year), cr=await all('rats',meta.year);
+    D=prep({...meta,subs:prev.subs.concat(cs),rats:prev.rats.concat(cr)});shell();
+  }catch(e){if(TOKEN)$('#root').innerHTML=`<div class="empty">${esc(e.message)}</div>`}
 }
 boot();
 </script>

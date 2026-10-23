@@ -7,7 +7,8 @@ CREATE INDEX IF NOT EXISTS ix_asg ON assignments(centre,batch);
 CREATE TABLE IF NOT EXISTS aliases (raw TEXT PRIMARY KEY, canon TEXT);
 CREATE TABLE IF NOT EXISTS submissions (
   id INTEGER PRIMARY KEY AUTOINCREMENT, year INTEGER, ts TEXT, centre TEXT, batch TEXT,
-  q1 REAL, q2 REAL, q3 REAL, comment TEXT, hidden INTEGER DEFAULT 0);
+  q1 REAL, q2 REAL, q3 REAL, comment TEXT, hidden INTEGER DEFAULT 0,
+  dev TEXT, net TEXT, ua TEXT, secs INTEGER, excluded INTEGER DEFAULT 0);
 CREATE INDEX IF NOT EXISTS ix_sub_year ON submissions(year);
 CREATE TABLE IF NOT EXISTS ratings (
   id INTEGER PRIMARY KEY AUTOINCREMENT, sid INTEGER, year INTEGER, centre TEXT, batch TEXT, role TEXT,

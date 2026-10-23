@@ -129,6 +129,8 @@ const OVERALL=['How likely are you to *recommend* Mayank Tutorials to your frien
 const TQ=(n,s)=>[`How *clearly* does ${n} explain ${s}?`,`How effectively does ${n} *solve your doubts* in ${s}?`,`How *approachable and supportive* is ${n}?`,`How *knowledgeable* is ${n} about the subject?`,`How *punctual and professional* is ${n}'s class?`];
 const SQ=n=>[`How *helpful* was ${n}?`,`Did ${n} *go beyond expectations* to assist you?`,`How *clear and timely* was ${n}'s communication?`,`How *timely* was ${n} in handling *test papers, timetables*, etc.?`,`How effectively did ${n} *resolve your issues*?`];
 const KEY='pulse-draft-v1';
+// Random code that stays on this phone. Sent only in scrambled form, so repeat submissions from one phone can be spotted without knowing whose phone it is.
+const DEV=(()=>{try{let d=localStorage.getItem('pulse-dev');if(!d){d=(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36));localStorage.setItem('pulse-dev',d)}return d}catch{return null}})();
 const $=s=>document.querySelector(s), app=$('#app');
 const kw=q=>esc(q).replace(/\*(.+?)\*/g,'<span class="kw">$1</span>');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -295,6 +297,7 @@ async function go(){
     try{await loadCfg()}catch(e){CODE_ERR=e.message}
     if(!CODE_OK)return render();
   }
+  if(S.step==='welcome'&&!S.t0)S.t0=Date.now();
   const st=steps(); let i=st.indexOf(S.step);
   if(S.step==='batch'){await loadRoster();if(!roster)return}
   if(S.step==='review')return submit();
@@ -313,7 +316,7 @@ async function submit(){
   const cs=cards();
   const ratings=cs.filter(c=>S.ratings[c.key]&&(answeredCount(S.ratings[c.key])||S.ratings[c.key].comment.trim())).map(c=>({role:c.role,person:c.person,r:S.ratings[c.key].r,comment:S.ratings[c.key].comment}));
   try{
-    const d=await api('/api/submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code:CODE,centre:S.centre,batch:S.batch,overall:{q1:S.overall.r[0],q2:S.overall.r[1],q3:S.overall.r[2],comment:S.overall.comment},ratings,website:($('#website')||{}).value||''})});
+    const d=await api('/api/submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code:CODE,dev:DEV,secs:S.t0?(Date.now()-S.t0)/1000:null,centre:S.centre,batch:S.batch,overall:{q1:S.overall.r[0],q2:S.overall.r[1],q3:S.overall.r[2],comment:S.overall.comment},ratings,website:($('#website')||{}).value||''})});
     if(d.status===422){
       S.errors={};
       for(const b of d.blocked){const k=b.index<0?'overall':ratings[b.index]&&(ratings[b.index].role+'|'+ratings[b.index].person);if(k)S.errors[k]=b.reason}

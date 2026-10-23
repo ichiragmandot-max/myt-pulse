@@ -1,4 +1,4 @@
-import { json, bad, setting, currentYear, moderate, rlKey, hit, checkCode, codeLocked } from '../../lib/util.js';
+import { json, bad, setting, currentYear, moderate, rlKey, hit, checkCode, codeLocked, ensureSchema, signalTag, uaFamily } from '../../lib/util.js';
 
 const score = (v) => (v === null || v === undefined || v === '' ? null : Math.max(1, Math.min(5, Math.round(Number(v)))) || null);
 const clean = (t) => (t ? String(t).trim().slice(0, 2000) : null) || null;
@@ -53,9 +53,15 @@ export async function onRequestPost({ request, env }) {
   const ts = new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 19).replace('T', ' '); // IST
   // 0 visible · 3 visible but tagged "check" for admin · 2 waiting for AI (only if AI moderation is on)
   const hid = (i) => (!texts[i] ? 0 : mod[i].pending ? 2 : mod[i].flag ? 3 : 0);
+  // Anonymous signals for spotting fake feedback: scrambled phone + network tags, phone type, time taken
+  await ensureSchema(env);
+  const dev = await signalTag(env, 'dev', String(body.dev || '').slice(0, 64), year);
+  const net = await signalTag(env, 'net', request.headers.get('cf-connecting-ip') || '', year);
+  const ua = uaFamily(request.headers.get('user-agent'));
+  const secs = Number.isFinite(+body.secs) ? Math.max(0, Math.min(86400, Math.round(+body.secs))) : null;
   const s = await env.DB.prepare(
-    'INSERT INTO submissions(year,ts,centre,batch,q1,q2,q3,comment,hidden) VALUES(?,?,?,?,?,?,?,?,?) RETURNING id'
-  ).bind(year, ts, centre, batch, overall.q1, overall.q2, overall.q3, overall.comment, hid(0)).first();
+    'INSERT INTO submissions(year,ts,centre,batch,q1,q2,q3,comment,hidden,dev,net,ua,secs) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id'
+  ).bind(year, ts, centre, batch, overall.q1, overall.q2, overall.q3, overall.comment, hid(0), dev, net, ua, secs).first();
   if (ratings.length) {
     const st = env.DB.prepare('INSERT INTO ratings(sid,year,centre,batch,role,person,subjects,r1,r2,r3,r4,r5,comment,hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
     await env.DB.batch(ratings.map((r, i) => st.bind(s.id, year, centre, batch, r.role, r.person, r.subjects, ...r.vals, r.comment, hid(i + 1))));

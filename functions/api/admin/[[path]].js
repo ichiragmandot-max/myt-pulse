@@ -1,4 +1,4 @@
-import { json, bad, setting, currentYear, requireAdmin, signToken, safeEqual, rlKey, hit, moderate, claude, makePin, getCodes, makeCode, normCode, quickFlag, softFlag } from '../../../lib/util.js';
+import { json, bad, setting, currentYear, requireAdmin, signToken, safeEqual, rlKey, hit, moderate, claude, makePin, getCodes, makeCode, normCode, quickFlag, softFlag, ensureSchema } from '../../../lib/util.js';
 
 export async function onRequest(ctx) {
   const { request, env, params } = ctx;
@@ -9,6 +9,7 @@ export async function onRequest(ctx) {
   const body = method === 'POST' ? await request.json().catch(() => ({})) : null;
   switch (path) {
     case 'data': return data(env);
+    case 'rows': return rows(request, env);
     case 'roster': return roster(env, body);
     case 'settings': return settings(env, body);
     case 'hide': return hide(env, body);
@@ -17,6 +18,8 @@ export async function onRequest(ctx) {
     case 'summarize': return summarize(env, body);
     case 'codes': return codes(env, body);
     case 'delete': return del(env, body);
+    case 'exclude': return exclude(env, body);
+    case 'erase-signals': return eraseSignals(env);
     default: return bad('Not found', 404);
   }
 }
@@ -30,12 +33,26 @@ async function login(request, env) {
 }
 
 // Everything the dashboard needs, in compact arrays. Aggregation happens in the browser.
+const SUB_COLS = ['id', 'year', 'ts', 'centre', 'batch', 'q1', 'q2', 'q3', 'comment', 'hidden', 'dev', 'net', 'ua', 'secs', 'excluded'];
+const RAT_COLS = ['id', 'sid', 'year', 'centre', 'batch', 'role', 'person', 'subjects', 'r1', 'r2', 'r3', 'r4', 'r5', 'comment', 'hidden'];
+// One page of raw rows: /api/admin/rows?t=subs|rats&year=2026&after=<last id>
+async function rows(request, env) {
+  await ensureSchema(env);
+  const u = new URL(request.url);
+  const t = u.searchParams.get('t') === 'subs' ? 'subs' : 'rats';
+  const year = parseInt(u.searchParams.get('year'), 10) || (await currentYear(env));
+  const after = parseInt(u.searchParams.get('after'), 10) || 0;
+  const limit = 4000;
+  const [table, cols] = t === 'subs' ? ['submissions', SUB_COLS] : ['ratings', RAT_COLS];
+  const r = await env.DB.prepare(`SELECT ${cols.join(',')} FROM ${table} WHERE year=? AND id>? ORDER BY id LIMIT ?`).bind(year, after, limit).raw();
+  return json({ rows: r, next: r.length === limit ? r[r.length - 1][0] : null });
+}
 async function data(env) {
+  await ensureSchema(env);
   const year = await currentYear(env);
   const q = (sql, ...b) => env.DB.prepare(sql).bind(...b).all().then((r) => r.results);
-  const [subs, rats, aliases, batches, people, sets, sums] = await Promise.all([
-    env.DB.prepare('SELECT id,year,ts,centre,batch,q1,q2,q3,comment,hidden FROM submissions WHERE year IN (?,?)').bind(year, year - 1).raw(),
-    env.DB.prepare('SELECT id,sid,year,centre,batch,role,person,subjects,r1,r2,r3,r4,r5,comment,hidden FROM ratings WHERE year IN (?,?)').bind(year, year - 1).raw(),
+  // Responses and ratings are fetched separately in small pages (see rows()), to stay inside the free plan's CPU limit
+  const [aliases, batches, people, sets, sums] = await Promise.all([
     q('SELECT raw,canon FROM aliases'),
     q('SELECT centre,batch,students,active FROM batches ORDER BY rowid'),
     q('SELECT name,type,phone IS NOT NULL AND phone<>\'\' AS hasPhone FROM people ORDER BY name'),
@@ -45,8 +62,7 @@ async function data(env) {
   const { results: asg } = await env.DB.prepare('SELECT centre,batch,role,subject,person FROM assignments').all();
   return json({
     year, prev: year - 1,
-    subCols: ['id', 'year', 'ts', 'centre', 'batch', 'q1', 'q2', 'q3', 'comment', 'hidden'], subs,
-    ratCols: ['id', 'sid', 'year', 'centre', 'batch', 'role', 'person', 'subjects', 'r1', 'r2', 'r3', 'r4', 'r5', 'comment', 'hidden'], rats,
+    subCols: SUB_COLS, ratCols: RAT_COLS,
     aliases: Object.fromEntries(aliases.map((a) => [a.raw, a.canon])), batches, people, assignments: asg,
     settings: Object.fromEntries(sets.map((s) => [s.key, s.value])), codes: await getCodes(env), summaries: sums,
   });
@@ -143,7 +159,7 @@ async function summarize(env, b) {
   const { results: names } = await env.DB.prepare('SELECT raw FROM aliases WHERE canon=?').bind(b.person).all();
   const all = [...new Set([b.person, ...names.map((x) => x.raw)])];
   const ph = all.map(() => '?').join(',');
-  const { results } = await env.DB.prepare(`SELECT r1,r2,r3,r4,r5,comment FROM ratings WHERE person IN (${ph}) AND role=? AND year=? AND hidden IN (0,3)`).bind(...all, b.role, year).all();
+  const { results } = await env.DB.prepare(`SELECT r1,r2,r3,r4,r5,comment FROM ratings WHERE person IN (${ph}) AND role=? AND year=? AND hidden IN (0,3) AND sid NOT IN (SELECT id FROM submissions WHERE excluded=1)`).bind(...all, b.role, year).all();
   const comments = results.map((r) => r.comment).filter((c) => c && c.trim().length > 3);
   if (comments.length < 3) return json({ ok: false, reason: 'Fewer than 3 useful comments' });
   const avg = [1, 2, 3, 4, 5].map((i) => { const v = results.map((r) => r['r' + i]).filter(Boolean); return v.length ? (v.reduce((a, c) => a + c, 0) / v.length).toFixed(2) : '-'; });
@@ -180,6 +196,24 @@ async function del(env, b) {
   const sub = await env.DB.prepare('SELECT year FROM submissions WHERE id=?').bind(id).first();
   if (!sub) return bad('Not found', 404);
   if (sub.year !== year) return bad('Only this year\'s responses can be deleted.');
-  await env.DB.batch([env.DB.prepare('DELETE FROM ratings WHERE sid=?').bind(id), env.DB.prepare('DELETE FROM submissions WHERE id=?').bind(id)]);
+  await env.DB.batch([env.DB.prepare('DELETE FROM ratings WHERE sid=?').bind(id), env.DB.prepare('DELETE FROM submissions WHERE id=?').bind(id), env.DB.prepare('DELETE FROM cache')]);
   return json({ ok: true });
+}
+
+// Leave a response in the log but keep it out of every score (dashboard, teacher portal, AI summaries)
+async function exclude(env, b) {
+  await ensureSchema(env);
+  const ids = (Array.isArray(b.ids) ? b.ids : [b.id]).map((x) => parseInt(x, 10)).filter(Boolean).slice(0, 500);
+  if (!ids.length) return bad('Missing id');
+  const st = env.DB.prepare('UPDATE submissions SET excluded=? WHERE id=?');
+  await env.DB.batch(ids.map((id) => st.bind(b.excluded ? 1 : 0, id)));
+  await env.DB.prepare('DELETE FROM cache').run();
+  return json({ ok: true, count: ids.length });
+}
+// After review: forget the phone/network tags for this year
+async function eraseSignals(env) {
+  await ensureSchema(env);
+  const year = await currentYear(env);
+  const r = await env.DB.prepare('UPDATE submissions SET dev=NULL, net=NULL, ua=NULL WHERE year=?').bind(year).run();
+  return json({ ok: true, changed: r.meta && r.meta.changes });
 }
