@@ -51,7 +51,8 @@ export async function onRequestPost({ request, env }) {
     return bad('Too many submissions from this network in the last hour. Please try again a little later.', 429);
 
   const ts = new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 19).replace('T', ' '); // IST
-  const hid = (i) => (texts[i] && mod[i].pending ? 2 : 0);
+  // 0 visible · 3 visible but tagged "check" for admin · 2 waiting for AI (only if AI moderation is on)
+  const hid = (i) => (!texts[i] ? 0 : mod[i].pending ? 2 : mod[i].flag ? 3 : 0);
   const s = await env.DB.prepare(
     'INSERT INTO submissions(year,ts,centre,batch,q1,q2,q3,comment,hidden) VALUES(?,?,?,?,?,?,?,?,?) RETURNING id'
   ).bind(year, ts, centre, batch, overall.q1, overall.q2, overall.q3, overall.comment, hid(0)).first();

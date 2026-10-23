@@ -1,4 +1,4 @@
-import { json, bad, setting, currentYear, requireAdmin, signToken, safeEqual, rlKey, hit, moderate, claude, makePin, getCodes, makeCode, normCode } from '../../../lib/util.js';
+import { json, bad, setting, currentYear, requireAdmin, signToken, safeEqual, rlKey, hit, moderate, claude, makePin, getCodes, makeCode, normCode, quickFlag, softFlag } from '../../../lib/util.js';
 
 export async function onRequest(ctx) {
   const { request, env, params } = ctx;
@@ -113,20 +113,16 @@ async function pins(env) {
   return json({ people: results });
 }
 
-// Re-run AI moderation on comments saved while the AI was unreachable
+// Offline word check for comments stuck as "waiting for AI": clear abuse -> hidden, possible insult -> visible + "check", else visible
 async function recheck(env) {
-  const out = { checked: 0, hidden: 0 };
+  const out = { checked: 0, hidden: 0, flagged: 0 };
   for (const table of ['submissions', 'ratings']) {
-    const { results } = await env.DB.prepare(`SELECT id,comment FROM ${table} WHERE hidden=2 LIMIT 40`).all();
-    if (!results.length) continue;
-    const mod = await moderate(env, results.map((r) => r.comment));
+    const { results } = await env.DB.prepare(`SELECT id,comment FROM ${table} WHERE hidden=2`).all();
     const st = env.DB.prepare(`UPDATE ${table} SET hidden=? WHERE id=?`);
-    const upd = [];
-    results.forEach((r, i) => { if (!mod[i].pending) { upd.push(st.bind(mod[i].ok ? 0 : 1, r.id)); out.checked++; if (!mod[i].ok) out.hidden++; } });
-    if (upd.length) await env.DB.batch(upd);
+    const upd = results.map((r) => { const h = quickFlag(r.comment) ? 1 : softFlag(r.comment) ? 3 : 0; out.checked++; if (h === 1) out.hidden++; if (h === 3) out.flagged++; return st.bind(h, r.id); });
+    for (let i = 0; i < upd.length; i += 400) await env.DB.batch(upd.slice(i, i + 400));
   }
-  const left = await env.DB.prepare('SELECT (SELECT COUNT(*) FROM submissions WHERE hidden=2)+(SELECT COUNT(*) FROM ratings WHERE hidden=2) n').first();
-  return json({ ...out, remaining: left.n });
+  return json({ ...out, remaining: 0 });
 }
 
 const SUM_SYS = `You turn anonymous student and parent feedback about one teacher or staff member at a coaching institute into a short, kind, practical note for that person. Comments may be in English, Hindi, Marathi or Hinglish; always write in simple English.
@@ -147,7 +143,7 @@ async function summarize(env, b) {
   const { results: names } = await env.DB.prepare('SELECT raw FROM aliases WHERE canon=?').bind(b.person).all();
   const all = [...new Set([b.person, ...names.map((x) => x.raw)])];
   const ph = all.map(() => '?').join(',');
-  const { results } = await env.DB.prepare(`SELECT r1,r2,r3,r4,r5,comment FROM ratings WHERE person IN (${ph}) AND role=? AND year=? AND hidden=0`).bind(...all, b.role, year).all();
+  const { results } = await env.DB.prepare(`SELECT r1,r2,r3,r4,r5,comment FROM ratings WHERE person IN (${ph}) AND role=? AND year=? AND hidden IN (0,3)`).bind(...all, b.role, year).all();
   const comments = results.map((r) => r.comment).filter((c) => c && c.trim().length > 3);
   if (comments.length < 3) return json({ ok: false, reason: 'Fewer than 3 useful comments' });
   const avg = [1, 2, 3, 4, 5].map((i) => { const v = results.map((r) => r['r' + i]).filter(Boolean); return v.length ? (v.reduce((a, c) => a + c, 0) / v.length).toFixed(2) : '-'; });

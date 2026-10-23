@@ -55,7 +55,7 @@ export async function onRequestPost({ request, env }) {
       current: agg(cur), previous: old.length ? agg(old) : null,
       institute: [inst.a1, inst.a2, inst.a3, inst.a4, inst.a5].map((x) => (x ? +x.toFixed(2) : null)),
       byCentre: groups(cur, 'centre'), byBatch: groups(cur.map((r) => ({ ...r, cb: r.centre + ' · ' + r.batch })), 'cb'),
-      comments: shuffle(cur.filter((r) => r.comment && r.hidden === 0 && r.comment.trim().length > 2).map((r) => r.comment)),
+      comments: shuffle(cur.filter((r) => r.comment && (r.hidden === 0 || r.hidden === 3) && r.comment.trim().length > 2).map((r) => r.comment)),
       summary: summary ? summary.text : null,
     });
   }

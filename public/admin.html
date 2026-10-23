@@ -321,14 +321,14 @@ function openPerson(name,role){
   const grp=(key)=>{const m=new Map();for(const r of R){const k=key(r);if(!m.has(k))m.set(k,[]);m.get(k).push(r)}const m0=new Map();for(const r of P){const k=key(r);if(!m0.has(k))m0.set(k,[]);m0.get(k).push(r)}
     const keys=[...new Set([...m.keys(),...m0.keys()])];
     return`<table><thead><tr><th></th><th class="num">${y} ratings</th>${LABELS[role].map(l=>`<th class="num">${l}</th>`).join('')}<th class="num">Overall</th><th class="num">${p}</th></tr></thead><tbody>${keys.map(k=>{const x=aggR(m.get(k)||[]),z=aggR(m0.get(k)||[]);return`<tr><td class="name">${esc(k)}</td><td class="num">${x.n||'–'}</td>${x.q.map(v=>`<td class="sc" style="${cellStyle(v,inst.overall||4.1)}">${fmt(v)}</td>`).join('')}<td class="sc" style="${cellStyle(x.overall,inst.overall||4.1)}">${fmt(x.overall)}</td><td class="num dim">${fmt(z.overall)}</td></tr>`}).join('')}</tbody></table>`};
-  const com=R.filter(r=>r.comment).sort((x,z)=>x.hidden-z.hidden);
+  const com=R.filter(r=>r.comment).sort((x,z)=>(z.hidden===3)-(x.hidden===3)||x.hidden-z.hidden);
   const com0=P.filter(r=>r.comment&&r.comment.trim().length>3);
   const sum=D.sum[name+'|'+role];
   $('#drawer').innerHTML=`<div class="hd"><div class="avatar ${role}">${esc(initials(name))}</div><div><div style="font-weight:800;font-size:18px">${esc(name)}</div><div class="dim">${role==='teacher'?'Teacher':'Staff'} · ${a.n} ratings in ${y} · ${b.n} in ${p}${F.centre||F.batch?` · filtered: ${esc([F.centre,F.batch].filter(Boolean).join(' / '))}`:''}</div></div><button class="x" id="dx">×</button></div>
   <div class="bd">
     <div class="grid kpis"><div class="card kpi"><div class="lab">Overall ${y}</div><div class="val">${fmt(a.overall)}</div><div class="cmp">${deltaHTML(a.overall,b.overall)} vs ${fmt(b.overall)} in ${p}</div></div>
       <div class="card kpi"><div class="lab">${role==='teacher'?'All teachers':'All staff'} average</div><div class="val">${fmt(inst.overall)}</div><div class="cmp">${a.overall!=null&&inst.overall!=null?(a.overall>=inst.overall?'<span class="delta up">Above average</span>':'<span class="delta down">Below average</span>'):''}</div></div>
-      <div class="card kpi"><div class="lab">Comments</div><div class="val">${com.length}</div><div class="cmp">${com.filter(c=>c.hidden).length} hidden</div></div></div>
+      <div class="card kpi"><div class="lab">Comments</div><div class="val">${com.length}</div><div class="cmp">${com.filter(c=>c.hidden===1||c.hidden===2).length} hidden · ${com.filter(c=>c.hidden===3).length} to check</div></div></div>
     <div class="card"><h3>Score by question</h3><div class="legend"><span><i class="sw" style="background:var(--navy)"></i>${y}</span><span><i class="sw" style="background:var(--prev)"></i>${p}</span></div>${qb}</div>
     <div class="card"><h3>How the ratings spread</h3><div class="sub">Share of every 1–5 tap across all five questions (${y})</div>
       <div class="dist">${dist.map((c,i)=>c?`<i style="width:${c/dt*100}%;background:${DC[i]}" data-tip="${i+1}★: ${c} (${Math.round(c/dt*100)}%)"></i>`:'').join('')}</div>
@@ -339,7 +339,7 @@ function openPerson(name,role){
       ${sum?`<div class="summary">${esc(sum.text)}</div><div class="dim" style="font-size:12px;margin-top:6px">Generated ${esc(sum.updated)}</div>`:'<div class="dim">Not generated yet.</div>'}
       <button class="btn sm" style="margin-top:10px" id="gen" data-person="${esc(name)}" data-role="${role}">${sum?'Regenerate':'Generate summary'}</button></div>
     <div class="card comments"><h3>Comments ${y}</h3><div class="sub">Hidden comments are not shown to ${esc(name)}.</div>
-      ${com.map(c=>`<div class="c ${c.hidden?'hid':''}"><div class="t">${esc(c.comment)}<div class="m">${esc(c.centre)} · ${esc(c.batch)}${c.hidden===2?' · <span class="tag amber">waiting for AI check</span>':c.hidden?' · <span class="tag red">hidden</span>':''}</div></div><button class="btn ghost sm" data-hide="${c.id}" data-h="${c.hidden?0:1}">${c.hidden?'Show':'Hide'}</button></div>`).join('')||'<div class="dim">No comments yet.</div>'}</div>
+      ${com.map(c=>`<div class="c ${c.hidden===1||c.hidden===2?'hid':''}"><div class="t">${esc(c.comment)}<div class="m">${esc(c.centre)} · ${esc(c.batch)} ${tagFor(c.hidden)}</div></div><button class="btn ghost sm" data-hide="${c.id}" data-h="${c.hidden===1?0:1}">${c.hidden===1?'Show':'Hide'}</button></div>`).join('')||'<div class="dim">No comments yet.</div>'}</div>
     ${com0.length?`<div class="card comments"><h3>Comments ${p}</h3>${com0.map(c=>`<div class="c"><div class="t">${esc(c.comment)}<div class="m">${esc(c.centre)} · ${esc(c.batch)}</div></div></div>`).join('')}</div>`:''}
   </div>`;
   $('#scrim').classList.add('on');$('#drawer').classList.add('on');$('#drawer').scrollTop=0;
@@ -347,6 +347,7 @@ function openPerson(name,role){
   $('#gen').onclick=async e=>{const b=e.target;b.disabled=true;b.textContent='Writing…';try{const r=await api('summarize',{person:name,role});if(!r.ok){toast(r.reason);b.disabled=false;b.textContent='Generate summary';return}D.sum[name+'|'+role]={text:r.text,updated:'just now'};openPerson(name,role)}catch(err){toast(err.message);b.disabled=false}};
   $('#drawer').querySelectorAll('[data-hide]').forEach(b=>b.onclick=()=>hideComment('rating',+b.dataset.hide,+b.dataset.h,()=>openPerson(name,role)));
 }
+function tagFor(h){return h===2?'<span class="tag amber">hidden · waiting for check</span>':h===3?'<span class="tag amber">⚠️ check · visible</span>':h===1?'<span class="tag red">hidden</span>':''}
 function closeDrawer(){$('#scrim').classList.remove('on');$('#drawer').classList.remove('on')}
 $('#scrim').onclick=closeDrawer;document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
 async function hideComment(kind,id,h,after){try{await api('hide',{kind,id,hidden:h});const arr=kind==='sub'?D.S:D.R;const x=arr.find(r=>r.id===id);if(x)x.hidden=h;after()}catch(e){toast(e.message)}}
@@ -356,16 +357,17 @@ let CK='all';
 function commentsView(){
   const y=D.year, q=F.q.trim().toLowerCase();
   let items=[];
-  if(CK==='all'||CK==='overall')items.push(...subs(y).filter(s=>s.comment).map(s=>({kind:'sub',id:s.id,who:'Overall experience',role:'overall',text:s.comment,centre:s.centre,batch:s.batch,hidden:s.hidden,ts:s.ts})));
-  if(CK==='all'||CK==='teacher'||CK==='staff')items.push(...rats(y).filter(r=>r.comment&&(CK==='all'||r.role===CK)).map(r=>({kind:'rating',id:r.id,who:r.p,role:r.role,text:r.comment,centre:r.centre,batch:r.batch,hidden:r.hidden,ts:''})));
+  if(CK==='all'||CK==='check'||CK==='overall')items.push(...subs(y).filter(s=>s.comment).map(s=>({kind:'sub',id:s.id,who:'Overall experience',role:'overall',text:s.comment,centre:s.centre,batch:s.batch,hidden:s.hidden,ts:s.ts})));
+  if(CK==='all'||CK==='check'||CK==='teacher'||CK==='staff')items.push(...rats(y).filter(r=>r.comment&&(CK==='all'||CK==='check'||r.role===CK)).map(r=>({kind:'rating',id:r.id,who:r.p,role:r.role,text:r.comment,centre:r.centre,batch:r.batch,hidden:r.hidden,ts:''})));
   if(q)items=items.filter(i=>i.text.toLowerCase().includes(q)||i.who.toLowerCase().includes(q));
   items=items.filter(i=>i.text.trim().length>2);
   const pending=D.S.filter(s=>s.hidden===2).length+D.R.filter(r=>r.hidden===2).length;
+  if(CK==='check')items=items.filter(i=>i.hidden===3||i.hidden===2);
   return`<div class="card comments"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><h3 style="margin:0">Comments ${y} <span class="dim" style="font-weight:500">· ${items.length}</span></h3>
-    ${['all','overall','teacher','staff'].map(k=>`<button class="btn sm ${CK===k?'':'ghost'}" data-ck="${k}">${{all:'All',overall:'Overall',teacher:'Teachers',staff:'Staff'}[k]}</button>`).join('')}
-    ${pending?`<span class="tag amber">${pending} waiting for AI check</span><button class="btn sm" id="recheck">Check now</button>`:''}</div>
-    <div class="sub">Abusive comments were already stopped at submit. Hide anything else you don't want the person to see.</div>
-    ${items.slice(0,600).map(c=>`<div class="c ${c.hidden?'hid':''}"><div class="t">${esc(c.text)}<div class="m"><b>${esc(c.who)}</b> · ${esc(c.centre)} · ${esc(c.batch)} ${c.hidden===2?'<span class="tag amber">waiting for AI check</span>':c.hidden?'<span class="tag red">hidden</span>':''}</div></div><button class="btn ghost sm" data-hidek="${c.kind}" data-id="${c.id}" data-h="${c.hidden?0:1}">${c.hidden?'Show':'Hide'}</button></div>`).join('')||'<div class="empty">No comments yet.</div>'}</div>`;
+    ${['all','check','overall','teacher','staff'].map(k=>`<button class="btn sm ${CK===k?'':'ghost'}" data-ck="${k}">${{all:'All',check:`⚠️ To check (${D.S.concat(D.R).filter(x=>x.year===y&&(x.hidden===3||x.hidden===2)&&x.comment).length})`,overall:'Overall',teacher:'Teachers',staff:'Staff'}[k]}</button>`).join('')}
+    ${pending?`<span class="tag amber">${pending} hidden, waiting for a check</span><button class="btn sm" id="recheck">Run word check &amp; make visible</button>`:''}</div>
+    <div class="sub">Swear words are stopped at submit. Comments with possible insults are saved but tagged <b>check</b>; they are visible to the person unless you hide them. Everything else is visible.</div>
+    ${items.slice(0,600).map(c=>`<div class="c ${c.hidden===1||c.hidden===2?'hid':''}"><div class="t">${esc(c.text)}<div class="m"><b>${esc(c.who)}</b> · ${esc(c.centre)} · ${esc(c.batch)} ${tagFor(c.hidden)}</div></div><button class="btn ghost sm" data-hidek="${c.kind}" data-id="${c.id}" data-h="${c.hidden===1?0:1}">${c.hidden===1?'Show':'Hide'}</button></div>`).join('')||'<div class="empty">No comments yet.</div>'}</div>`;
 }
 
 // ---------------- raw responses log ----------------
@@ -374,7 +376,7 @@ function logView(){
   const y=D.year,q=F.q.trim().toLowerCase().replace(/^#/,'');
   let list=subs(y).slice().sort((a,b)=>b.id-a.id);
   if(q)list=list.filter(s=>String(s.id)===q||(s.comment||'').toLowerCase().includes(q)||(D.bySid.get(s.id)||[]).some(r=>r.p.toLowerCase().includes(q)||(r.comment||'').toLowerCase().includes(q)));
-  const st=h=>h===2?'<span class="tag amber">AI check pending</span>':h?'<span class="tag red">hidden</span>':'';
+  const st=tagFor;
   const sc=v=>v==null?'<span class="dim">–</span>':v;
   return`<div class="card"><h3>Responses ${y} <span class="dim" style="font-weight:500">· ${list.length}</span></h3>
     <div class="sub">Every submission exactly as it was saved, newest first. The "Ref" number is shown to the person on their thank-you screen, so you can find your own test entries. Tap a row to see every rating in it.</div>
@@ -457,7 +459,7 @@ function bindView(){
     try{await navigator.clipboard.writeText(msg);toast('Reminder copied. Paste it in the batch WhatsApp group.')}catch{prompt('Copy this message:',msg)}});
   v.querySelectorAll('[data-ck]').forEach(b=>b.onclick=()=>{CK=b.dataset.ck;draw()});
   v.querySelectorAll('[data-hidek]').forEach(b=>b.onclick=()=>hideComment(b.dataset.hidek==='sub'?'sub':'rating',+b.dataset.id,+b.dataset.h,draw));
-  const rc=$('#recheck');if(rc)rc.onclick=async()=>{rc.disabled=true;try{const r=await api('recheck',{});toast(`Checked ${r.checked}, hid ${r.hidden}. ${r.remaining} left.`);boot()}catch(e){toast(e.message)}};
+  const rc=$('#recheck');if(rc)rc.onclick=async()=>{rc.disabled=true;try{const r=await api('recheck',{});toast(`${r.checked} comments checked: ${r.checked-r.hidden-r.flagged} now visible, ${r.flagged} tagged "check", ${r.hidden} hidden.`);boot()}catch(e){toast(e.message)}};
   v.querySelectorAll('[data-set]').forEach(b=>b.onclick=async()=>{const key=b.dataset.set,val=D.settings[key]==='1'?'0':'1';try{await api('settings',{key,value:val});D.settings[key]=val;shell()}catch(e){toast(e.message)}});
   v.querySelectorAll('[data-del]').forEach(b=>b.onclick=async e=>{e.preventDefault();const id=+b.dataset.del;if(!confirm(`Permanently delete response #${id} and all its ratings? This cannot be undone.`))return;
     try{await api('delete',{id});D.S=D.S.filter(s=>s.id!==id);D.R=D.R.filter(r=>r.sid!==id);D.bySid.delete(id);toast(`Response #${id} deleted`);draw()}catch(err){toast(err.message)}});
