@@ -395,14 +395,27 @@ function readRoster(file){
   return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{try{
     const wb=XLSX.read(fr.result,{type:'array'});
     const sheet=n=>{const k=wb.SheetNames.find(x=>x.toLowerCase().includes(n));if(!k)throw new Error(`Sheet "${n}" not found`);return XLSX.utils.sheet_to_json(wb.Sheets[k],{defval:''})};
-    const col=(row,...keys)=>{for(const k of Object.keys(row)){const l=k.toLowerCase();if(keys.some(x=>l.includes(x)))return String(row[k]).trim()}return''};
+    const tidy=v=>String(v??'').replace(/\s+/g,' ').trim();
+    const col=(row,...keys)=>{for(const k of Object.keys(row)){const l=k.toLowerCase();if(keys.some(x=>l.includes(x)))return tidy(row[k])}return''};
     const batches=sheet('batch').map(r=>({centre:col(r,'centre','center'),batch:col(r,'batch'),students:parseInt(col(r,'students'))||null,active:!/^n/i.test(col(r,'yes/no','active ('))})).filter(r=>r.centre&&r.batch);
     const people=sheet('people').map(r=>({name:col(r,'name'),type:col(r,'type'),phone:col(r,'phone'),pin:col(r,'pin'),aliases:col(r,'2025').split(',').map(x=>x.trim()).filter(Boolean)}));
     // the "2025 names" column also contains "name" – read it explicitly
-    sheet('people').forEach((r,i)=>{const k=Object.keys(r).find(k=>/^name$/i.test(k.trim()));if(k)people[i].name=String(r[k]).trim()});
+    sheet('people').forEach((r,i)=>{const k=Object.keys(r).find(k=>/^name$/i.test(k.trim()));if(k)people[i].name=tidy(r[k])});
     const teachers=sheet('teacher').map(r=>({centre:col(r,'centre','center'),batch:col(r,'batch'),subject:col(r,'subject'),person:col(r,'teacher')})).filter(r=>r.centre&&r.batch&&r.person);
     const staff=sheet('staff').map(r=>({centre:col(r,'centre','center'),batch:col(r,'batch')||'All',person:col(r,'staff')})).filter(r=>r.centre&&r.person);
-    res({batches,people:people.filter(p=>p.name),teachers,staff});
+    // Match names forgivingly: ignore capitals, extra spaces, Mam / Maam / Ma'am / Madam, dots
+    const key=n=>String(n).toLowerCase().replace(/\bma['’]?a?m\b|\bmadam\b/g,'mam').replace(/[^a-z0-9]/g,'');
+    const P=people.filter(p=>p.name), byKey=new Map(), dupes=[];
+    for(const p of P){const k=key(p.name);if(byKey.has(k))dupes.push(p.name);else byKey.set(k,p.name)}
+    const unknown=new Set();
+    for(const r of [...teachers,...staff]){const m=byKey.get(key(r.person));if(m)r.person=m;else unknown.add(r.person)}
+    const bset=new Set(batches.map(b=>b.centre+'|'+b.batch));
+    const noBatch=new Set();
+    for(const t of teachers)if(!bset.has(t.centre+'|'+t.batch))noBatch.add(t.centre+' · '+t.batch);
+    for(const s of staff)if(s.batch!=='All'&&!bset.has(s.centre+'|'+s.batch))noBatch.add(s.centre+' · '+s.batch);
+    const errors=[...[...new Set(dupes)].map(n=>`People sheet: "${n}" appears more than once. Give each person a different name (e.g. add a surname).`),...[...unknown].map(n=>`"${n}" is used on the Teachers/Staff sheet but is not on the People sheet. Add them to People.`)];
+    const warnings=[...noBatch].map(b=>`${b} has teachers/staff but is not on the Batches sheet, so students can't pick it.`);
+    res({batches,people:P,teachers,staff,errors,warnings});
   }catch(e){rej(e)}};fr.readAsArrayBuffer(file)});
 }
 function bindView(){
@@ -426,8 +439,9 @@ function bindView(){
   const xf=$('#xf');if(xf)xf.onchange=async()=>{
     const box=$('#xprev');box.innerHTML='<div class="dim">Reading…</div>';
     try{const R=await readRoster(xf.files[0]);
-      box.innerHTML=`<div class="row"><div class="txt">Found <b>${R.batches.length}</b> batches, <b>${R.people.length}</b> people, <b>${R.teachers.length}</b> teacher rows, <b>${R.staff.length}</b> staff rows.</div><button class="btn sm red" id="xgo">Replace roster</button></div><div class="problems" id="xprob"></div>`;
-      $('#xgo').onclick=async()=>{$('#xgo').disabled=true;try{const r=await api('roster',R);toast('Roster updated');boot()}catch(e){$('#xgo').disabled=false;$('#xprob').innerHTML=esc(e.message)+(e.data&&e.data.problems?'<br>'+e.data.problems.map(esc).join('<br>'):'')}};
+      box.innerHTML=`<div class="row"><div class="txt">Found <b>${R.batches.length}</b> batches, <b>${R.people.length}</b> people, <b>${R.teachers.length}</b> teacher rows, <b>${R.staff.length}</b> staff rows.${R.errors.length?`<div class="problems"><b>Fix these in the Excel file, then upload again:</b><br>${R.errors.map(esc).join('<br>')}</div>`:''}${R.warnings.length?`<div style="color:#8a5a00;font-size:13px;margin-top:8px"><b>Check:</b><br>${R.warnings.map(esc).join('<br>')}</div>`:''}</div>${R.errors.length?'':'<button class="btn sm red" id="xgo">Replace roster</button>'}</div><div class="problems" id="xprob"></div>`;
+      if(R.errors.length)return;
+      $('#xgo').onclick=async()=>{$('#xgo').disabled=true;try{const r=await api('roster',{batches:R.batches,people:R.people,teachers:R.teachers,staff:R.staff});toast('Roster updated');boot()}catch(e){$('#xgo').disabled=false;$('#xprob').innerHTML=esc(e.message)+(e.data&&e.data.problems?'<br>'+e.data.problems.map(esc).join('<br>'):'')}};
     }catch(e){box.innerHTML=`<div class="problems">${esc(e.message)}</div>`}};
   const pb=$('#pins');if(pb)pb.onclick=async()=>{const r=await api('pins');const link=location.origin+'/me';download('MYT_Pulse_PINs.csv',csv([['Name','Type','Phone','PIN','Link','SMS message'],...r.people.map(p=>[p.name,p.type,p.phone,p.pin,link+'#'+p.pin,`Dear ${p.name}, your ${D.year} feedback from students & parents is ready. Open ${link}#${p.pin} (PIN ${p.pin}). Please keep this private. - Mayank Tutorials`])]))};
   const ga=$('#genall');if(ga)ga.onclick=async()=>{ga.disabled=true;const todo=[];for(const role of['teacher','staff'])for(const[n,rows]of people(role,D.year))if(rows.filter(r=>r.comment&&r.comment.trim().length>3).length>=3)todo.push([n,role]);

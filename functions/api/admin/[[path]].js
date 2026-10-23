@@ -84,6 +84,13 @@ async function roster(env, b) {
   for (const t of teach) st.push(ias.bind(t.centre, t.batch, 'teacher', t.subject || null, t.person));
   for (const s of staff) st.push(ias.bind(s.centre, s.batch || 'All', 'staff', null, s.person));
   for (let i = 0; i < st.length; i += 400) await env.DB.batch(st.slice(i, i + 400));
+  // If centre codes are on, give any new centre its own code so it isn't locked out
+  const codes = await getCodes(env);
+  if (Object.values(codes).some(Boolean)) {
+    let added = 0;
+    for (const c of new Set(batches.filter((x) => x.active).map((x) => x.centre))) if (!codes[c]) { codes[c] = makeCode(c); added++; }
+    if (added) await env.DB.prepare('INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)').bind('codes', JSON.stringify(codes)).run();
+  }
   return json({ ok: true, counts: { batches: batches.length, people: people.length, teachers: teach.length, staff: staff.length } });
 }
 
