@@ -55,18 +55,34 @@ p.lead{color:var(--ink-2);margin:0 0 18px}
 .choice:hover{border-color:var(--navy-2)}
 .choice.on{border-color:var(--navy);background:var(--soft);box-shadow:inset 0 0 0 1px var(--navy)}
 .choice small{display:block;font-weight:500;color:var(--muted);font-size:12.5px}
+.choice.multi{display:flex;align-items:center;gap:10px}
+.choice.multi .ck{width:22px;height:22px;border-radius:7px;border:2px solid #b9c3d6;flex:0 0 auto;display:grid;place-items:center;font-size:14px;color:#fff;transition:background .15s,border-color .15s}
+.choice.multi.on .ck{background:var(--navy);border-color:var(--navy)}
+.choice.multi.on .ck::after{content:'✓';font-weight:800}
+.picknote{display:flex;gap:10px;align-items:flex-start;background:#fff7da;border:1px solid #f3e2a6;border-radius:14px;padding:12px 14px;margin-bottom:14px;font-size:14.5px}
+.picknote span{font-size:20px;line-height:1.2}
+.subjhd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.subjhd b{font-size:16px}.subjhd small{color:var(--muted);font-weight:600;font-size:12.5px}
 .q{padding:14px 0;border-top:1px solid var(--line)}
 .q:first-of-type{border-top:0;padding-top:4px}
 .q .t{font-weight:600;margin-bottom:10px}
-.q .t .kw{color:var(--red);font-weight:800;background:linear-gradient(transparent 62%,#fde2e5 62%);padding:0 1px}
+.q .t .kw{color:#0b4f7a;font-weight:800;background:#dff0fb;border-radius:7px;padding:1px 7px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 .scale{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
-.scale button{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:8px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;transition:transform .12s,border-color .12s,background .12s}
-.scale button .e{font-size:24px;line-height:1.1;filter:grayscale(.85);opacity:.7;transition:filter .12s,opacity .12s}
-.scale button .n{font-weight:700;font-size:14px}
-.scale button .l{font-size:10.5px;color:var(--muted);font-weight:500;white-space:nowrap}
-.scale button.on{border-color:var(--navy);background:var(--navy);color:#fff;transform:translateY(-1px)}
-.scale button.on .e{filter:none;opacity:1}
-.scale button.on .l{color:#dbe3f3}
+.scale button{--c:#203864;--bg:#eef2f9;border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:8px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;transition:transform .15s,border-color .15s,background .15s,box-shadow .15s}
+.scale button[data-v="1"]{--c:#d93a3a;--bg:#fdeaea}
+.scale button[data-v="2"]{--c:#e8772e;--bg:#fff0e4}
+.scale button[data-v="3"]{--c:#c99a06;--bg:#fff7da}
+.scale button[data-v="4"]{--c:#2f9e5b;--bg:#e6f6ec}
+.scale button[data-v="5"]{--c:#13804a;--bg:#d9f2e3}
+.scale button .e{font-size:26px;line-height:1.1;transition:transform .15s}
+.scale button .n{font-weight:800;font-size:14px;color:var(--ink-2)}
+.scale button .l{font-size:10.5px;color:var(--muted);font-weight:600;white-space:nowrap}
+.scale button:hover{border-color:var(--c)}
+.scale button.on{border-color:var(--c);background:var(--bg);box-shadow:0 0 0 1.5px var(--c) inset,0 4px 12px rgba(0,0,0,.08);transform:translateY(-2px)}
+.scale button.on .e{transform:scale(1.22)}
+.scale button.on .n,.scale button.on .l{color:var(--c)}
+.scale button.on .l{font-weight:800}
+.scale:has(.on) button:not(.on) .e{opacity:.55}
 .scale button:active{transform:scale(.96)}
 textarea{width:100%;min-height:84px;border:1.5px solid var(--line);border-radius:12px;padding:12px;font:inherit;resize:vertical;background:#fff}
 textarea:focus{outline:none;border-color:var(--navy)}
@@ -144,8 +160,9 @@ function cards(){
 function steps(){
   const st=['welcome',...(cfg&&cfg.centres&&cfg.centres.length===1?[]:['centre']),'batch'];
   if(!roster)return st;
+  st.push('overall');
   if(needsPick().length)st.push('pick');
-  st.push('overall',...cards().map(c=>'card:'+c.key),'review');
+  st.push(...cards().map(c=>'card:'+c.key),'review');
   return st;
 }
 const answeredCount=r=>r?r.r.filter(v=>v).length:0;
@@ -196,8 +213,9 @@ function render(){
   }
   if(step==='pick'){
     const groups=needsPick();
-    h=`<div class="fade"><span class="pill">${esc(S.centre)} · ${esc(S.batch)}</span><h2>Who teaches you?</h2><p class="lead">Some subjects have more than one teacher in this batch. Tap the one(s) who teach <b>you</b>.</p>
-      ${groups.map(([s,ts])=>`<div class="card"><div style="font-weight:700;margin-bottom:10px">${esc(s)}</div><div class="choices">${ts.map(t=>`<button class="choice ${(S.picks[s]||[]).includes(t)?'on':''}" data-pick-s="${esc(s)}" data-pick-t="${esc(t)}">${esc(t)}</button>`).join('')}</div></div>`).join('')}</div>`;
+    h=`<div class="fade"><span class="pill">${esc(S.centre)} · ${esc(S.batch)}</span><h2>Which teachers teach you?</h2><p class="lead">These subjects have more than one teacher in your batch. Pick only the teachers who <b>actually teach you</b>. You'll rate just them next.</p>
+      <div class="picknote"><span>☑️</span><div><b>You can tick more than one</b> if two teachers take the subject for you (e.g. Physics part 1 and part 2). If none of them teach you, leave it blank.</div></div>
+      ${groups.map(([s,ts])=>{const n=(S.picks[s]||[]).length;return`<div class="card"><div class="subjhd"><b>${esc(s)}</b><small data-cnt="${esc(s)}">${n?n+' selected':'Tick all that apply'}</small></div><div class="choices">${ts.map(t=>`<button class="choice multi ${(S.picks[s]||[]).includes(t)?'on':''}" role="checkbox" aria-checked="${(S.picks[s]||[]).includes(t)}" data-pick-s="${esc(s)}" data-pick-t="${esc(t)}"><span class="ck"></span>${esc(t)}</button>`).join('')}</div></div>`}).join('')}</div>`;
     app.innerHTML=h; setFoot('Next'); return;
   }
   if(step==='overall'){
@@ -246,7 +264,8 @@ app.addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b)return;
   if(b.dataset.centre){if(S.centre!==b.dataset.centre){S.centre=b.dataset.centre;S.batch=null;roster=null;S.picks={};S.ratings={};S.skipped={}}save();render();setTimeout(go,160);return}
   if(b.dataset.batch){if(S.batch!==b.dataset.batch){S.batch=b.dataset.batch;roster=null;S.picks={};S.ratings={};S.skipped={}}save();render();setTimeout(go,160);return}
-  if(b.dataset.pickS){const s=b.dataset.pickS,t=b.dataset.pickT,a=S.picks[s]||(S.picks[s]=[]);const i=a.indexOf(t);i>=0?a.splice(i,1):a.push(t);b.classList.toggle('on');save();return}
+  if(b.dataset.pickS){const s=b.dataset.pickS,t=b.dataset.pickT,a=S.picks[s]||(S.picks[s]=[]);const i=a.indexOf(t);i>=0?a.splice(i,1):a.push(t);b.classList.toggle('on');b.setAttribute('aria-checked',b.classList.contains('on'));
+    const c=[...app.querySelectorAll('[data-cnt]')].find(x=>x.dataset.cnt===s);if(c)c.textContent=a.length?a.length+' selected':'Tick all that apply';save();return}
   if(b.dataset.q){
     const v=+b.dataset.v, q=b.dataset.q;
     if(q[0]==='o'){const i=+q.slice(1);S.overall.r[i]=S.overall.r[i]===v?null:v}
