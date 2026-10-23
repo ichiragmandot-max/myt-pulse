@@ -59,5 +59,5 @@ export async function onRequestPost({ request, env }) {
     const st = env.DB.prepare('INSERT INTO ratings(sid,year,centre,batch,role,person,subjects,r1,r2,r3,r4,r5,comment,hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
     await env.DB.batch(ratings.map((r, i) => st.bind(s.id, year, centre, batch, r.role, r.person, r.subjects, ...r.vals, r.comment, hid(i + 1))));
   }
-  return json({ ok: true });
+  return json({ ok: true, ref: s.id });
 }

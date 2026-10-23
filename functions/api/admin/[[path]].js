@@ -16,6 +16,7 @@ export async function onRequest(ctx) {
     case 'recheck': return recheck(env);
     case 'summarize': return summarize(env, body);
     case 'codes': return codes(env, body);
+    case 'delete': return del(env, body);
     default: return bad('Not found', 404);
   }
 }
@@ -173,4 +174,16 @@ async function codes(env, b) {
   else return bad('Unknown action');
   await env.DB.prepare('INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)').bind('codes', JSON.stringify(c)).run();
   return json({ ok: true, codes: c });
+}
+
+// Permanently delete one submission and all its ratings (for removing test entries)
+async function del(env, b) {
+  const id = parseInt(b.id, 10);
+  if (!id) return bad('Missing id');
+  const year = await currentYear(env);
+  const sub = await env.DB.prepare('SELECT year FROM submissions WHERE id=?').bind(id).first();
+  if (!sub) return bad('Not found', 404);
+  if (sub.year !== year) return bad('Only this year\'s responses can be deleted.');
+  await env.DB.batch([env.DB.prepare('DELETE FROM ratings WHERE sid=?').bind(id), env.DB.prepare('DELETE FROM submissions WHERE id=?').bind(id)]);
+  return json({ ok: true });
 }

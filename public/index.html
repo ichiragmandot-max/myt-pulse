@@ -40,13 +40,6 @@ button{font:inherit;color:inherit;cursor:pointer}
 @keyframes pulse{50%{box-shadow:0 0 0 7px rgba(61,220,132,.05)}}
 .brandfoot{text-align:center;color:var(--muted);font-size:12px;margin-top:22px}
 .brandfoot b{font-family:Lora,Georgia,serif;color:var(--red);font-size:13px;letter-spacing:.5px}
-.race{display:grid;gap:9px}
-.race .r{display:grid;grid-template-columns:118px 1fr 48px;gap:10px;align-items:center;font-size:14px}
-.race .r .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.race .r .tr{height:12px;background:#eef1f6;border-radius:6px;overflow:hidden}
-.race .r .tr i{display:block;height:100%;background:#9fb0cf;border-radius:0 6px 6px 0;transition:width .8s ease}
-.race .r.me .nm{color:var(--red)}.race .r.me .tr i{background:var(--red)}
-.race .r .v{text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
 .codebox{border:2px solid var(--navy)}
 .codebox input{width:100%;font:inherit;font-size:24px;font-weight:800;letter-spacing:6px;text-transform:uppercase;text-align:center;border:1.5px solid var(--line);border-radius:12px;padding:12px;margin:10px 0 4px}
 .codebox input:focus{outline:none;border-color:var(--navy)}
@@ -178,8 +171,7 @@ function render(){
     const done=localStorage.getItem('pulse-done');
     h=`<div class="fade"><div class="hero"><span class="kicker">Annual Feedback ${new Date().getFullYear()}</span>
       <h1>Your voice makes your <em>teachers & staff</em> better.</h1>
-      <p>About 5 minutes. Students and parents are both welcome. Rate only the teachers and staff you know, and skip any question you like.</p>
-      ${CODE_OK&&PULSE&&PULSE.total?`<div class="live"><i></i>${PULSE.total.toLocaleString('en-IN')} students &amp; parents have shared feedback so far</div>`:''}</div>
+      <p>About 5 minutes. Students and parents are both welcome. Rate only the teachers and staff you know, and skip any question you like.</p></div>
       <div class="card">
         <div class="trust"><span>🕶️</span><div><b>Completely anonymous.</b> We never ask your name, phone number or roll number.</div></div>
         <div class="trust"><span>🎯</span><div><b>Short and personal.</b> You'll only see the teachers and staff of your own batch.</div></div>
@@ -243,10 +235,8 @@ function render(){
   if(step==='done'){
     const DI=S.doneInfo||{};
     h=`<div class="fade"><div class="hero center"><div style="font-size:54px;line-height:1">🙏</div><h1>Thank you!</h1><p style="margin:0 auto">Your feedback has gone in anonymously.${DI.people?` You just helped <b style="color:#fff">${DI.people} teachers &amp; staff</b> get better.`:''}</p></div>
-      <div class="card"><h2 style="font-size:18px">🏁 Centre race</h2><p class="hint" style="margin:0 0 12px">Which centre's students &amp; parents are speaking up the most? ${DI.centre?`Help <b style="color:var(--red)">${esc(DI.centre)}</b> climb: remind your batchmates to fill it in.`:''}</p>
-        <div class="race" id="race"><div class="hint">Loading…</div></div></div>
-      ${FOOT}</div>`;
-    app.innerHTML=h; setFoot('',{hide:true}); drawRace(DI.centre);
+      ${DI.ref?`<p class="hint center" style="margin-top:4px">Reference no. ${esc(DI.ref)}</p>`:''}${FOOT}</div>`;
+    app.innerHTML=h; setFoot('',{hide:true});
   }
 }
 
@@ -285,7 +275,6 @@ async function go(){
     CODE=v; $('#next').disabled=true;
     try{await loadCfg()}catch(e){CODE_ERR=e.message}
     if(!CODE_OK)return render();
-    try{PULSE=await api(withCode('/api/pulse'))}catch{}
   }
   const st=steps(); let i=st.indexOf(S.step);
   if(S.step==='batch'){await loadRoster();if(!roster)return}
@@ -314,12 +303,12 @@ async function submit(){
       toast('One comment needs a small change before sending.'); return;
     }
     try{localStorage.setItem('pulse-done',Date.now());localStorage.removeItem(KEY)}catch{}
-    const info={centre:S.centre,batch:S.batch,people:ratings.filter(r=>r.r.some(v=>v)).length};
+    const info={ref:d.ref,centre:S.centre,batch:S.batch,people:ratings.filter(r=>r.r.some(v=>v)).length};
     S=fresh(); S.step='done'; S.doneInfo=info; render();
   }catch(e){toast(e.message);btn.disabled=false;btn.textContent='Submit feedback'}
 }
 const FOOT=`<div class="brandfoot"><b>MAYANK TUTORIALS</b><br>A Brand You Can Trust · Since 2013</div>`;
-let PULSE=null, CODE=null, CODE_OK=false, CODE_ERR='';
+let CODE=null, CODE_OK=false, CODE_ERR='';
 try{const u=new URL(location.href);CODE=(u.searchParams.get('c')||new URLSearchParams(location.hash.slice(1)).get('c')||localStorage.getItem('pulse-code')||'').toUpperCase()||null;if(u.searchParams.get('c')||location.hash.includes('c='))history.replaceState(null,'',location.pathname)}catch{}
 const withCode=p=>p+(p.includes('?')?'&':'?')+'code='+encodeURIComponent(CODE||'');
 async function loadCfg(){
@@ -330,19 +319,8 @@ async function loadCfg(){
     if(cfg.centres.length===1&&S.centre!==cfg.centres[0].name){S.centre=cfg.centres[0].name;S.batch=null;roster=null}
     if(S.centre&&!cfg.centres.some(c=>c.name===S.centre)){S.centre=null;S.batch=null;roster=null}}
 }
-async function drawRace(mine){
-  try{PULSE=await api(withCode('/api/pulse?t='+Date.now()))}catch{return}
-  const rows=PULSE.centres.map(c=>({...c,v:c.students?c.n/c.students:null}));
-  const byPct=rows.every(r=>r.v!==null&&r.students>0);
-  rows.sort((a,b)=>byPct?b.v-a.v:b.n-a.n);
-  const max=byPct?1:Math.max(1,...rows.map(r=>r.n));
-  const el=$('#race'); if(!el)return;
-  el.innerHTML=rows.map(r=>`<div class="r ${r.name===mine?'me':''}"><span class="nm">${r.name===mine?'★ ':''}${esc(r.name)}</span><span class="tr"><i style="width:0" data-w="${Math.max(2,(byPct?r.v:r.n/max)*100)}"></i></span><span class="v">${byPct?Math.round(r.v*100)+'%':r.n}</span></div>`).join('')+`<div class="hint">${byPct?'Share of students who have responded.':'Responses so far.'} Updates live.</div>`;
-  requestAnimationFrame(()=>el.querySelectorAll('i[data-w]').forEach(i=>i.style.width=Math.min(100,+i.dataset.w)+'%'));
-}
 (async()=>{
   try{await loadCfg()}catch(e){app.innerHTML=`<div class="loading">${esc(e.message||'Could not load. Please check your internet and refresh.')}</div>`;return}
-  if(CODE_OK)try{PULSE=await api(withCode('/api/pulse'))}catch{}
   if(S.centre&&S.batch&&!['welcome','centre','batch','done'].includes(S.step)){await loadRoster();if(!roster)S.step='batch'}
   if(S.step==='done')S=fresh();
   render();

@@ -119,6 +119,13 @@ td.sc{text-align:center;font-weight:700;border-radius:6px;border:2px solid #fff;
 .tip{position:fixed;pointer-events:none;background:var(--ink);color:#fff;font-size:12px;padding:6px 9px;border-radius:8px;z-index:50;display:none;white-space:nowrap}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
+.logrow{border-top:1px solid #f0f2f6}
+.logrow summary{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;padding:10px 4px;cursor:pointer;list-style:none}
+.logrow summary::-webkit-details-marker{display:none}
+.logrow summary:hover{background:#f8f9fc}
+.logrow[open] summary{background:#f4f6fa}
+.logrow .ref{font-variant-numeric:tabular-nums;color:var(--navy);min-width:52px}
+.logbody{padding:10px 4px 14px}
 .att{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:800px){.att{grid-template-columns:1fr}}
 </style>
 </head>
@@ -159,6 +166,7 @@ function prep(d){
   d.students={};for(const b of d.batches)d.students[b.centre+'|'+b.batch]=b.students||0;
   d.centres=[...new Set([...d.batches.map(b=>b.centre),...d.S.map(s=>s.centre)])];
   d.year0=d.year;
+  d.bySid=new Map();for(const r of d.R){if(!d.bySid.has(r.sid))d.bySid.set(r.sid,[]);d.bySid.get(r.sid).push(r)}
   d.sum={};for(const s of d.summaries)d.sum[s.person+'|'+s.role]=s;
   return d;
 }
@@ -196,12 +204,12 @@ function shell(){
   const open=s.form_open==='1', rel=s.results_released==='1';
   const batches=F.centre?D.batches.filter(b=>b.centre===F.centre).map(b=>b.batch):[...new Set(D.batches.map(b=>b.batch))];
   $('#root').innerHTML=`<header><div class="in"><div class="brand"><img src="/emblem.jpg" alt=""><div><b>MAYANK TUTORIALS</b><small>Feedback ${D.year} vs ${D.prev}</small></div></div>
-    <nav>${[['overview','Overview'],['teacher','Teachers'],['staff','Staff'],['comments','Comments'],['setup','Setup']].map(([k,l])=>`<button data-tab="${k}" class="${TAB===k?'on':''}">${l}</button>`).join('')}</nav>
+    <nav>${[['overview','Overview'],['teacher','Teachers'],['staff','Staff'],['comments','Comments'],['log','Responses'],['setup','Setup']].map(([k,l])=>`<button data-tab="${k}" class="${TAB===k?'on':''}">${l}</button>`).join('')}</nav>
     <div class="chips"><span class="chip ${open?'live':'off'}">Form ${open?'open':'closed'}</span><span class="chip ${rel?'live':'off'}">Results ${rel?'visible to staff':'hidden'}</span></div></div></header>
     <main><div class="filters" ${TAB==='setup'?'hidden':''}>
       <select id="fy" title="Which year to view">${[D.year0,D.year0-1].map(y=>`<option value="${y}" ${D.year===y?'selected':''}>${y}${y===D.year0?' (this year)':''}</option>`).join('')}</select><select id="fc"><option value="">All centres</option>${D.centres.map(c=>`<option ${F.centre===c?'selected':''}>${esc(c)}</option>`).join('')}</select>
       <select id="fb"><option value="">All batches</option>${batches.map(b=>`<option ${F.batch===b?'selected':''}>${esc(b)}</option>`).join('')}</select>
-      ${['teacher','staff','comments'].includes(TAB)?`<input id="fq" placeholder="Search name or text…" value="${esc(F.q)}">`:''}
+      ${['teacher','staff','comments','log'].includes(TAB)?`<input id="fq" placeholder="${TAB==='log'?'Search ref no., name or text…':'Search name or text…'}" value="${esc(F.q)}">`:''}
       <button class="btn ghost sm" id="refresh">↻ Refresh</button>
       <span class="note">Comparing this year with ${D.prev} using the same questions. Scores are out of 5.</span></div>
     <div id="view"></div></main>`;
@@ -217,6 +225,7 @@ function draw(keepFocus){
   if(TAB==='overview')v.innerHTML=overview();
   else if(TAB==='teacher'||TAB==='staff')v.innerHTML=peopleTable(TAB);
   else if(TAB==='comments')v.innerHTML=commentsView();
+  else if(TAB==='log')v.innerHTML=logView();
   else v.innerHTML=setupView();
   bindView();
 }
@@ -359,6 +368,24 @@ function commentsView(){
     ${items.slice(0,600).map(c=>`<div class="c ${c.hidden?'hid':''}"><div class="t">${esc(c.text)}<div class="m"><b>${esc(c.who)}</b> · ${esc(c.centre)} · ${esc(c.batch)} ${c.hidden===2?'<span class="tag amber">waiting for AI check</span>':c.hidden?'<span class="tag red">hidden</span>':''}</div></div><button class="btn ghost sm" data-hidek="${c.kind}" data-id="${c.id}" data-h="${c.hidden?0:1}">${c.hidden?'Show':'Hide'}</button></div>`).join('')||'<div class="empty">No comments yet.</div>'}</div>`;
 }
 
+// ---------------- raw responses log ----------------
+let LOG_N=100;
+function logView(){
+  const y=D.year,q=F.q.trim().toLowerCase().replace(/^#/,'');
+  let list=subs(y).slice().sort((a,b)=>b.id-a.id);
+  if(q)list=list.filter(s=>String(s.id)===q||(s.comment||'').toLowerCase().includes(q)||(D.bySid.get(s.id)||[]).some(r=>r.p.toLowerCase().includes(q)||(r.comment||'').toLowerCase().includes(q)));
+  const st=h=>h===2?'<span class="tag amber">AI check pending</span>':h?'<span class="tag red">hidden</span>':'';
+  const sc=v=>v==null?'<span class="dim">–</span>':v;
+  return`<div class="card"><h3>Responses ${y} <span class="dim" style="font-weight:500">· ${list.length}</span></h3>
+    <div class="sub">Every submission exactly as it was saved, newest first. The "Ref" number is shown to the person on their thank-you screen, so you can find your own test entries. Tap a row to see every rating in it.</div>
+    ${list.slice(0,LOG_N).map(s=>{const rs=(D.bySid.get(s.id)||[]).slice().sort((a,b)=>a.role.localeCompare(b.role)||a.p.localeCompare(b.p));return`<details class="logrow"><summary><b class="ref">#${s.id}</b><span class="dim">${esc(s.ts)}</span><span><b>${esc(s.centre)}</b> · ${esc(s.batch)}</span><span>Overall ${sc(s.q1)} / ${sc(s.q2)} / ${sc(s.q3)}</span><span class="dim">${rs.length} rated${rs.filter(r=>r.comment).length+(s.comment?1:0)?` · ${rs.filter(r=>r.comment).length+(s.comment?1:0)} comments`:''}</span></summary>
+      <div class="logbody">${s.comment?`<div style="margin-bottom:8px"><b>Overall comment:</b> ${esc(s.comment)} ${st(s.hidden)}</div>`:''}
+      <div class="tablewrap"><table><thead><tr><th>Person</th><th>Role · subject</th><th class="num">Q1</th><th class="num">Q2</th><th class="num">Q3</th><th class="num">Q4</th><th class="num">Q5</th><th>Comment</th></tr></thead><tbody>
+      ${rs.map(r=>`<tr><td class="name">${esc(r.p)}${r.p!==r.person?` <span class="dim">(${esc(r.person)})</span>`:''}</td><td class="dim">${r.role}${r.subjects?' · '+esc(r.subjects):''}</td>${[r.r1,r.r2,r.r3,r.r4,r.r5].map(v=>`<td class="num">${sc(v)}</td>`).join('')}<td>${esc(r.comment||'')} ${st(r.hidden)}</td></tr>`).join('')||'<tr><td colspan="8" class="dim">No teacher or staff ratings in this response.</td></tr>'}
+      </tbody></table></div>
+      <div style="text-align:right;margin-top:8px"><button class="btn ghost sm" data-del="${s.id}" style="color:var(--red)">Delete response #${s.id}</button></div></div></details>`}).join('')||'<div class="empty">No responses yet.</div>'}
+    ${list.length>LOG_N?`<div style="text-align:center;margin-top:12px"><button class="btn ghost sm" id="more">Show ${Math.min(100,list.length-LOG_N)} more</button></div>`:''}</div>`;
+}
 // ---------------- setup ----------------
 function setupView(){
   const s=D.settings;
@@ -369,6 +396,8 @@ function setupView(){
     <div class="row"><div class="txt"><b>Feedback year</b><div class="dim">New responses are saved under this year and compared with the year before.</div></div><input id="yr" type="number" value="${esc(s.year)}" style="width:100px;border:1px solid var(--line);border-radius:8px;padding:6px"><button class="btn sm ghost" id="saveyr">Save</button></div></div>
   ${codesCard()}
   <div class="card setup"><h3>Roster</h3><div class="sub">Live now: ${counts.b} batches · ${counts.p} people · ${counts.t} teacher assignments · ${counts.st} staff assignments</div>
+    <details style="margin-bottom:6px"><summary style="cursor:pointer;font-weight:700;color:var(--navy)">See which batches each centre shows on the form</summary>
+    <div style="margin-top:10px">${[...new Set(D.batches.map(b=>b.centre))].map(c=>`<div style="padding:7px 0;border-top:1px solid #f0f2f6"><b>${esc(c)}</b><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px">${D.batches.filter(b=>b.centre===c).map(b=>{const t=D.assignments.filter(a=>a.centre===c&&a.batch===b.batch&&a.role==='teacher').length;return`<span class="tag ${b.active?'':'red'}" title="${t} teacher rows">${esc(b.batch)}${b.active?'':' (hidden)'}${t?'':' · no teachers'}</span>`}).join('')}</div></div>`).join('')}</div></details>
     <div class="row"><div class="txt"><b>Upload roster Excel</b><div class="dim">The MYT_Pulse_Roster file with sheets Batches, People, Teachers, Staff. Uploading replaces the current roster. Responses are never touched, and PINs stay the same for existing names.</div></div><input type="file" id="xf" accept=".xlsx"></div>
     <div id="xprev"></div></div>
   <div class="card setup"><h3>Teacher & staff access</h3>
@@ -430,6 +459,9 @@ function bindView(){
   v.querySelectorAll('[data-hidek]').forEach(b=>b.onclick=()=>hideComment(b.dataset.hidek==='sub'?'sub':'rating',+b.dataset.id,+b.dataset.h,draw));
   const rc=$('#recheck');if(rc)rc.onclick=async()=>{rc.disabled=true;try{const r=await api('recheck',{});toast(`Checked ${r.checked}, hid ${r.hidden}. ${r.remaining} left.`);boot()}catch(e){toast(e.message)}};
   v.querySelectorAll('[data-set]').forEach(b=>b.onclick=async()=>{const key=b.dataset.set,val=D.settings[key]==='1'?'0':'1';try{await api('settings',{key,value:val});D.settings[key]=val;shell()}catch(e){toast(e.message)}});
+  v.querySelectorAll('[data-del]').forEach(b=>b.onclick=async e=>{e.preventDefault();const id=+b.dataset.del;if(!confirm(`Permanently delete response #${id} and all its ratings? This cannot be undone.`))return;
+    try{await api('delete',{id});D.S=D.S.filter(s=>s.id!==id);D.R=D.R.filter(r=>r.sid!==id);D.bySid.delete(id);toast(`Response #${id} deleted`);draw()}catch(err){toast(err.message)}});
+  const mo=$('#more');if(mo)mo.onclick=()=>{LOG_N+=100;draw()};
   const codeCall=async body=>{try{const r=await api('codes',body);D.codes=r.codes;draw()}catch(e){toast(e.message)}};
   v.querySelectorAll('[data-codes]').forEach(b=>b.onclick=()=>{if(b.dataset.codes==='off'&&!confirm('Turn codes off? Anyone with the link will be able to submit.'))return;codeCall({action:b.dataset.codes})});
   v.querySelectorAll('[data-coderegen]').forEach(b=>b.onclick=()=>{if(confirm(`Make a new code for ${b.dataset.coderegen}? The old code and links will stop working.`))codeCall({action:'regen',centre:b.dataset.coderegen})});
